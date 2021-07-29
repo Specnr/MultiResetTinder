@@ -1,4 +1,5 @@
 {
+  "disable-tts": true,
   "fullscreen": false,
   "count-attempts": true,
   "auto-reset": true,
@@ -8,14 +9,22 @@
   "freeze-delay": 170,
   "fullscreen-delay": 100,
   "switch-delay": 170,
-  "timer-reset": "F8",
-  "timer-start": "F9",
-  "saves-folders": [
+  "mc-folders": [
     "C:/MultiInstanceMC/Minecraft1",
     "C:/MultiInstanceMC/Minecraft2",
-    "C:/MultiInstanceMC/Minecraft3"
+    "C:/MultiInstanceMC/Minecraft3",
+    "C:/MultiInstanceMC/Minecraft4"
   ],
   "old-worlds" : "C:/MultiInstanceMC/oldWorlds",
-  "instance-count": 3,
-  "max-concurrent-gen": 2
+  "max-concurrent-gen": 2,
+  "hotkeys": {
+    "reset-active": "U",
+    "reset-focused": "H",
+    "approve-focused": "J",
+    "toggle-hotkeys": "right alt"
+  },
+  "timer-hotkeys": {
+    "timer-reset": "F8",
+    "timer-start": "F9"
+  }
 }
