@@ -30,6 +30,17 @@ focused_instance = None
 list_with_focussed = None
 
 
+def set_new_active(inst):
+    hlp.run_ahk("updateTitle", pid=inst.PID,
+                title="Minecraft* - Active Instance")
+    active_instance.resume()
+
+
+def set_new_focused(inst):
+    hlp.run_ahk("updateTitle", pid=inst.PID,
+                title="Minecraft* - Focused Instance")
+
+
 def main_loop(sc):
     global active_instance
     global focused_instance
@@ -88,17 +99,16 @@ def main_loop(sc):
         if len(ready_instances) > 0:
             focused_instance = ready_instances[0]
             list_with_focussed = ready_instances
+            set_new_focused(focused_instance)
         elif len(gen_instances) > 0:
             focused_instance = gen_instances[0]
             list_with_focussed = gen_instances
+            set_new_focused(focused_instance)
         elif len(macro_instances) > 0:
             focused_instance = macro_instances[0]
         else:
             # Show a meme or something lol
             pass
-    if focused_instance is not None:
-        hlp.run_ahk("updateTitle", pid=focused_instance.PID,
-                    title="Minecraft* 1.16.1 - Focused Instance")
 
     # Handle ready and approved instances
     j = 0
@@ -123,21 +133,18 @@ def main_loop(sc):
     if active_instance is None:
         if len(approved_instances) > 0:
             active_instance = approved_instances.pop(0)
+            set_new_active(active_instance)
         elif focused_instance in ready_instances and len(ready_instances) > 1:
             active_instance = ready_instances.pop(1)
+            set_new_active(active_instance)
         elif not focused_instance in ready_instances and len(ready_instances) > 0:
             active_instance = ready_instances.pop(0)
+            set_new_active(active_instance)
         else:
             # Not sure what to do here lol
             pass
         hlp.run_ahk("callTimer", timerReset=settings["timer-hotkeys"]["timer-reset"],
                     timerStart=settings["timer-hotkeys"]["timer-start"])
-    if active_instance is not None:
-        hlp.run_ahk("updateTitle", pid=active_instance.PID,
-                    title="Minecraft* 1.16.1 - Active Instance")
-        active_instance.resume()
-        print(active_instance.num)
-    print("loop")
     SCHEDULER.enter(LOOP_DELAY, 1, main_loop, (sc,))
 
 
@@ -206,13 +213,14 @@ def toggle_hotkeys():
 
 if __name__ == "__main__":
     # TODO: Automatically startup instances
-    PIDs = list(map(int, hlp.run_ahk("getPIDs").split("|")))
+    PIDs = list(map(int, hlp.run_ahk(
+        "getPIDs", instances=len(settings["mc-folders"])).split("|")))
     for i in range(len(dead_instances)):
         inst = dead_instances.pop(0)
         inst.PID = PIDs[i]
         inst.resume()
         hlp.run_ahk("updateTitle", pid=inst.PID,
-                    title=f"Minecraft* 1.16.1 - Instance {i+1}")
+                    title=f"Minecraft* - Instance {i+1}")
         free_instances.append(inst)
     kb.add_hotkey(settings['hotkeys']['reset-active'], reset_active)
     kb.add_hotkey(settings['hotkeys']['reset-focused'], reset_focused)

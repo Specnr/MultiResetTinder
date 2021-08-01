@@ -50,7 +50,7 @@ Loop, %all%
 {
   WinGet, pid, PID, % "ahk_id " all%A_Index%
   WinGetTitle, title, ahk_pid %pid%
-  if (InStr(title, "Minecraft* 1.16.1") && !InStr(title, "Not Responding"))
+  if (InStr(title, "Minecraft*") && !InStr(title, "Not Responding"))
     Output .= pid "`n"
 }
 tmpPids := StrSplit(Output, "`n")
