@@ -55,12 +55,20 @@ class Instance:
         return self.read_logs(lambda x: "Saving chunks for level 'ServerLevel" in x and "minecraft:the_end" in x, lines_from_bottom)
 
 
-def set_new_active(inst):
+def is_livesplit_open():
+    return ahk.find_window(title=b"LiveSplit") is not None
+
+
+def set_new_active(inst, settings):
     if inst is not None:
         run_ahk("updateTitle", pid=inst.PID,
                 title="Minecraft* - Active Instance")
         inst.resume()
         # TODO: Update ls user config
+        run_ahk("activateWindow", switchDelay=settings["switch-delay"],
+                pid=inst.PID, idx=inst.num, obsDelay=settings["obs-delay"])
+        if settings["fullscreen"]:
+            run_ahk("toggleFullscreen")
 
 
 def set_new_focused(inst):

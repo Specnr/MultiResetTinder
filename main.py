@@ -26,12 +26,18 @@ listening = True
 active_instance = None
 focused_instance = None
 list_with_focussed = None
+need_to_reset_timer = False
 
 
 def main_loop(sc):
     global active_instance
     global focused_instance
     global list_with_focussed
+    global need_to_reset_timer
+
+    if need_to_reset_timer and hlp.is_livesplit_open():
+        hlp.run_ahk("callTimer", timerReset=settings["timer-hotkeys"]["timer-reset"],
+                    timerStart=settings["timer-hotkeys"]["timer-start"])
 
     # Handle free instances
     j = 0
@@ -98,10 +104,10 @@ def main_loop(sc):
             active_instance = ready_instances.pop(1)
         elif not focused_instance in ready_instances and len(ready_instances) > 0:
             active_instance = ready_instances.pop(0)
-        else:
-            # Not sure what to do here lol
-            pass
-        hlp.set_new_active(active_instance)
+        elif len(gen_instances) > 0:
+            active_instance = gen_instances.pop(0)
+        hlp.set_new_active(active_instance, settings)
+        need_to_reset_timer = True
     SCHEDULER.enter(settings["loop-delay"], 1, main_loop, (sc,))
 
 
@@ -114,15 +120,12 @@ def reset_active():
         free_instances.append(active_instance)
         if len(approved_instances) > 0:
             active_instance = approved_instances.pop(0)
-            hlp.run_ahk("updateTitle", pid=active_instance.PID,
-                        title="Minecraft* - Active Instance")
         elif len(ready_instances) > 0:
             active_instance = ready_instances.pop(0)
-            hlp.run_ahk("updateTitle", pid=active_instance.PID,
-                        title="Minecraft* - Active Instance")
-        else:
-            # Not sure what to do here lol
-            pass
+        elif len(gen_instances) > 0:
+            active_instance = gen_instances.pop(0)
+        hlp.set_new_active(active_instance, settings)
+        need_to_reset_timer = True
 
 
 def reset_focused():
@@ -139,9 +142,7 @@ def reset_focused():
         elif len(gen_instances) > 0:
             focused_instance = gen_instances[0]
             list_with_focussed = gen_instances
-        else:
-            # Show a meme or something lol
-            pass
+        hlp.set_new_focused(focused_instance)
 
 
 def approve_focused():
@@ -158,9 +159,7 @@ def approve_focused():
         elif len(gen_instances) > 0:
             focused_instance = gen_instances[0]
             list_with_focussed = gen_instances
-        else:
-            # Show a meme or something lol
-            pass
+        hlp.set_new_focused(focused_instance)
 
 
 def toggle_hotkeys():

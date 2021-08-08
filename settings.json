@@ -7,6 +7,7 @@
   "freeze-delay": 170,
   "fullscreen-delay": 100,
   "switch-delay": 170,
+  "obs-delay": 50,
   "loop-delay": 0.01,
   "mc-folders": [
     "C:/MultiInstanceMC/MultiMC/instances/1.16INST1/.minecraft",
