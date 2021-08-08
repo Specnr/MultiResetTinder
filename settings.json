@@ -3,19 +3,18 @@
   "fullscreen": false,
   "count-attempts": true,
   "auto-reset": true,
-  "multi-mc": false,
-  "delay": 60,
-  "title-screen-delay": 0,
+  "multi-mc": true,
   "freeze-delay": 170,
   "fullscreen-delay": 100,
   "switch-delay": 170,
+  "loop-delay": 0.01,
   "mc-folders": [
-    "C:/MultiInstanceMC/Minecraft1",
-    "C:/MultiInstanceMC/Minecraft2",
-    "C:/MultiInstanceMC/Minecraft3",
-    "C:/MultiInstanceMC/Minecraft4"
+    "C:/MultiInstanceMC/MultiMC/instances/1.16INST1/.minecraft",
+    "C:/MultiInstanceMC/MultiMC/instances/1.16INST2/.minecraft",
+    "C:/MultiInstanceMC/MultiMC/instances/1.16INST3/.minecraft"
   ],
-  "old-worlds" : "C:/MultiInstanceMC/oldWorlds",
+  "lines-from-bottom": 2,
+  "old-worlds": "C:/MultiInstanceMC/oldWorlds",
   "max-concurrent-gen": 2,
   "hotkeys": {
     "reset-active": "U",

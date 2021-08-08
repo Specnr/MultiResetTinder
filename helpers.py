@@ -7,7 +7,6 @@ ahk = AHK()
 
 
 class Instance:
-    reset_state = 0
     when_genned = 0
     first_reset = True
     is_suspended = False
@@ -24,6 +23,11 @@ class Instance:
     def resume(self):
         run_ahk("resumeInstance", pid=self.PID)
         self.is_suspended = False
+
+    def reset(self):
+        self.resume()
+        run_ahk("reset", pid=self.PID)
+        self.first_reset = False
 
     def move_worlds(self, old_worlds):
         for dir_name in os.listdir(self.mcdir + "/saves"):
@@ -44,23 +48,31 @@ class Instance:
                         return True
         return False
 
-    def is_in_world(self):
+    def is_in_world(self, lines_from_bottom=2):
         if self.first_reset:
             return False
         # Read logs and see if is done world gen
-        return self.read_logs(lambda x: "Saving chunks for level 'ServerLevel" in x and "minecraft:the_end" in x)
+        return self.read_logs(lambda x: "Saving chunks for level 'ServerLevel" in x and "minecraft:the_end" in x, lines_from_bottom)
 
-    def is_in_title(self):
-        # Read logs and see if saving is done
-        if self.first_reset:
-            return True
-        return self.read_logs(lambda x: "Stopping worker threads" in x)
+
+def set_new_active(inst):
+    if inst is not None:
+        run_ahk("updateTitle", pid=inst.PID,
+                title="Minecraft* - Active Instance")
+        inst.resume()
+        # TODO: Update ls user config
+
+
+def set_new_focused(inst):
+    if inst is not None:
+        run_ahk("updateTitle", pid=inst.PID,
+                title="Minecraft* - Focused Instance")
 
 
 def file_to_script(script_name, **kwargs):
     script_str = ""
     for key in kwargs:
-        script_str += f'{key} := "{kwargs[key]}"\n'
+        script_str += f'global {key} := "{kwargs[key]}"\n'
     with open("./ahk/" + script_name + ".ahk", "r") as ahk_script:
         script_str += ahk_script.read()
     return script_str

@@ -1,6 +1,7 @@
 #Persistent
 ; Used to make OBS know which instance is which for startup
-
+global MultiMC := True
+global instances := 3
 RunHide(Command)
 {
   dhw := A_DetectHiddenWindows

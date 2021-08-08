@@ -9,7 +9,6 @@ from datetime import datetime
 
 
 # Load settings
-LOOP_DELAY = 0.01
 with open("./settings.json", "r") as f:
     settings = json.load(f)
 Path(settings["old-worlds"]).mkdir(parents=True, exist_ok=True)
@@ -19,7 +18,6 @@ SCHEDULER = sched.scheduler(time.time, time.sleep)
 dead_instances = [hlp.Instance(-1, i+1, settings["mc-folders"][i])
                   for i in range(len(settings["mc-folders"]))]
 free_instances = []
-macro_instances = []
 gen_instances = []
 ready_instances = []
 approved_instances = []
@@ -30,17 +28,6 @@ focused_instance = None
 list_with_focussed = None
 
 
-def set_new_active(inst):
-    hlp.run_ahk("updateTitle", pid=inst.PID,
-                title="Minecraft* - Active Instance")
-    active_instance.resume()
-
-
-def set_new_focused(inst):
-    hlp.run_ahk("updateTitle", pid=inst.PID,
-                title="Minecraft* - Focused Instance")
-
-
 def main_loop(sc):
     global active_instance
     global focused_instance
@@ -48,45 +35,21 @@ def main_loop(sc):
 
     # Handle free instances
     j = 0
-    instances_against_cap = len(macro_instances) + len(gen_instances)
     for i in range(len(free_instances)):
-        if instances_against_cap < settings["max-concurrent-gen"]:
-            if free_instances[j].is_in_title():
-                free_instances[j].reset_state = 2
-                free_instances[j].resume()
-            macro_instances.append(free_instances.pop(j))
-            instances_against_cap += 1
+        if len(gen_instances) < settings["max-concurrent-gen"]:
+            free_instances[j].resume()
+            free_instances[j].reset()
+            gen_instances.append(free_instances.pop(j))
         elif not free_instances[j].is_suspended:
             free_instances[j].suspend()
             j += 1
         else:
             j += 1
 
-    # Handle macro instances
-    j = 0
-    for i in range(len(macro_instances)):
-        if macro_instances[j].reset_state == 0:
-            macro_instances[j].resume()
-            macro_instances[j].reset_state += 1
-        for i in range(1, 6):
-            if macro_instances[j].reset_state == i:
-                hlp.run_ahk(f"/macro/{i}",
-                            pid=macro_instances[j].PID, delay=settings["delay"])
-                macro_instances[j].reset_state += 1
-                break
-        if macro_instances[j].reset_state == 6:
-            macro_instances[j].move_worlds(settings["old-worlds"])
-            macro_instances[j].first_reset = False
-            gen_instances.append(macro_instances.pop(j))
-            if (settings["count-attempts"]):
-                hlp.add_attempt()
-            j -= 1
-        j += 1
-
     # Handle world gen instances
     j = 0
     for i in range(len(gen_instances)):
-        if gen_instances[j].is_in_world():
+        if gen_instances[j].is_in_world(settings['lines-from-bottom']):
             hlp.run_ahk("pauseGame", pid=gen_instances[j].PID)
             gen_instances[j].when_genned = datetime.now()
             ready_instances.append(gen_instances.pop(j))
@@ -99,13 +62,11 @@ def main_loop(sc):
         if len(ready_instances) > 0:
             focused_instance = ready_instances[0]
             list_with_focussed = ready_instances
-            set_new_focused(focused_instance)
+            hlp.set_new_focused(focused_instance)
         elif len(gen_instances) > 0:
             focused_instance = gen_instances[0]
             list_with_focussed = gen_instances
-            set_new_focused(focused_instance)
-        elif len(macro_instances) > 0:
-            focused_instance = macro_instances[0]
+            hlp.set_new_focused(focused_instance)
         else:
             # Show a meme or something lol
             pass
@@ -133,19 +94,15 @@ def main_loop(sc):
     if active_instance is None:
         if len(approved_instances) > 0:
             active_instance = approved_instances.pop(0)
-            set_new_active(active_instance)
         elif focused_instance in ready_instances and len(ready_instances) > 1:
             active_instance = ready_instances.pop(1)
-            set_new_active(active_instance)
         elif not focused_instance in ready_instances and len(ready_instances) > 0:
             active_instance = ready_instances.pop(0)
-            set_new_active(active_instance)
         else:
             # Not sure what to do here lol
             pass
-        hlp.run_ahk("callTimer", timerReset=settings["timer-hotkeys"]["timer-reset"],
-                    timerStart=settings["timer-hotkeys"]["timer-start"])
-    SCHEDULER.enter(LOOP_DELAY, 1, main_loop, (sc,))
+        hlp.set_new_active(active_instance)
+    SCHEDULER.enter(settings["loop-delay"], 1, main_loop, (sc,))
 
 
 # Callbacks
@@ -153,11 +110,16 @@ def reset_active():
     global active_instance
     if listening and active_instance is not None:
         print("Reset Active")
+        hlp.run_ahk("pauseActive", pid=active_instance.PID)
         free_instances.append(active_instance)
         if len(approved_instances) > 0:
             active_instance = approved_instances.pop(0)
+            hlp.run_ahk("updateTitle", pid=active_instance.PID,
+                        title="Minecraft* - Active Instance")
         elif len(ready_instances) > 0:
             active_instance = ready_instances.pop(0)
+            hlp.run_ahk("updateTitle", pid=active_instance.PID,
+                        title="Minecraft* - Active Instance")
         else:
             # Not sure what to do here lol
             pass
@@ -177,8 +139,6 @@ def reset_focused():
         elif len(gen_instances) > 0:
             focused_instance = gen_instances[0]
             list_with_focussed = gen_instances
-        elif len(macro_instances) > 0:
-            focused_instance = macro_instances[0]
         else:
             # Show a meme or something lol
             pass
@@ -198,8 +158,6 @@ def approve_focused():
         elif len(gen_instances) > 0:
             focused_instance = gen_instances[0]
             list_with_focussed = gen_instances
-        elif len(macro_instances) > 0:
-            focused_instance = macro_instances[0]
         else:
             # Show a meme or something lol
             pass
@@ -214,7 +172,7 @@ def toggle_hotkeys():
 if __name__ == "__main__":
     # TODO: Automatically startup instances
     PIDs = list(map(int, hlp.run_ahk(
-        "getPIDs", instances=len(settings["mc-folders"])).split("|")))
+        "getPIDs", instances=len(settings["mc-folders"]), MultiMC=settings['multi-mc']).split("|")))
     for i in range(len(dead_instances)):
         inst = dead_instances.pop(0)
         inst.PID = PIDs[i]
@@ -228,5 +186,5 @@ if __name__ == "__main__":
     kb.add_hotkey(settings['hotkeys']['toggle-hotkeys'], toggle_hotkeys)
     if not settings["disable-tts"]:
         hlp.run_ahk("ready")
-    SCHEDULER.enter(LOOP_DELAY, 1, main_loop, (SCHEDULER,))
+    SCHEDULER.enter(settings["loop-delay"], 1, main_loop, (SCHEDULER,))
     SCHEDULER.run()
