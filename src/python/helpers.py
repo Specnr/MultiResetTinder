@@ -20,7 +20,7 @@ class Instance:
     
     def boot(self):
         self.timestamp = time.time()
-
+        run_cmd('{} --launch "{}"'.format(executable, inst_name))
 
     def create_multimc_instance(self):
 
