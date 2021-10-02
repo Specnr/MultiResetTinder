@@ -13,8 +13,8 @@ def assign_to_state(instance, state):
     global num_per_state
     if state not in num_per_state:
         num_per_state[state] = 0
-    
-
+    num_per_state[state] = num_per_state[state] + 1
+    instance.priority = num_per_state[state]
 
 class State(Enum):
     DEAD = 0
@@ -27,7 +27,104 @@ class State(Enum):
     APPROVED = 7
     ACTIVE = 8
 
-class Instance:
+
+
+
+class Process:
+    def assign_pid(self, all_processes):
+        all_pids = get_pids()
+        for pid in all_pids:
+            pid_maps_to_instance = False
+            for instance in all_instances:
+                if instance.pid == pid:
+                    pid_maps_to_instance = True
+            if not pid_maps_to_instance:
+                self.pid = pid
+
+
+class Suspendable(Process):
+
+
+    def suspend(self):
+        if self.is_suspended():
+            return
+        self.suspended = True
+        run_ahk("suspendInstance", pid=self.pid)
+
+    def resume(self):
+        if not self.is_suspended():
+            return
+        self.is_suspended = False
+        run_ahk("resumeInstance", pid=self.pid)
+
+    def is_suspended(self):
+        return self.suspended
+
+
+class Stateful(Suspendable):
+
+    def mark_booting(self):
+        assign_to_state(self, State.BOOTING)
+        self.timestamp = get_time()
+
+
+
+    
+    def mark_pregen(self):
+        self.was_active = False
+        assign_to_state(self, State.PREGEN)
+    
+    def mark_generating(self):
+        assign_to_state(self, State.GEN)
+    
+    def mark_worldgen_finished(self):
+        assign_to_state(self, State.PAUSED)
+        self.timestamp = get_time()
+    
+    def mark_free(self):
+        assign_to_state(self, State.FREE)
+    
+    def release(self):
+        if self.is_suspended():
+            assign_to_state(self, State.FREE)
+        else:
+            assign_to_state(self, State.PREGEN)
+        self.timestamp = get_time()
+
+    def mark_ready(self):
+        pass
+
+    def mark_active(self):
+        assign_to_state(self, State.ACTIVE)
+        self.was_active = True
+
+    def mark_inactive(self):
+        # add to pregen
+        self.mark_pregen()
+
+
+class ConditionalTransitionable(Stateful):
+
+    def is_ready_for_freeze(self):
+        if self.state == State.PAUSED:
+            duration = 2.0
+        return has_passed(self.timestamp, duration)
+
+    def is_done_unfreezing(self):
+        duration = 0.5
+        return has_passed(self.timestamp, duration)
+
+    def is_ready_for_unfreeze(self):
+        duration = 0.5
+        return has_passed(self.timestamp, duration)
+
+    def check_should_auto_reset(self):
+        duration = 300.0
+        if has_passed(self.timestamp, duration):
+            self.release()
+            return True
+
+class Instance(ConditionalTransitionable):
 
     def __init__(self, num):
         self.num = num
@@ -40,77 +137,36 @@ class Instance:
         self.was_active = False
     
     def boot(self):
-        self.timestamp = time.time()
         run_cmd('{} --launch "{}"'.format(executable, inst_name))
 
+    # not yet implemented
     def create_multimc_instance(self):
+        pass
 
-
+    # not yet implemented
     def create_obs_instance(self):
-
-
-    def is_suspended(self):
-        return self.suspended
-
+        pass
 
     def initialize_after_boot(self, all_instances):
-        hlp.run_ahk("updateTitle", pid=inst.PID,
-            title=f"Minecraft* - Instance {i+1}")
+        # assign our pid somehow
         self.assign_pid(all_instances)
-        # start generating world
+        # set our title
+        hlp.run_ahk("updateTitle", pid=self.pid,
+            title=f"Minecraft* - Instance {i+1}")
+        # start generating world w/ duncan mod
+        hlp.run_ahk("startDuncanModSession", pid=self.pid)
+        # set state to generating
+        self.mark_generating()
 
-    def assign_pid(self, all_instances):
-        all_pids = get_pids()
-        for pid in all_pids:
-            pid_maps_to_instance = False
-            for instance in all_instances:
-                if instance.pid == pid:
-                    pid_maps_to_instance = True
-            if not pid_maps_to_instance:
-                self.pid = pid
-    
-    def mark_active(self):
-        assign_to_state(self, State.ACTIVE)
-        was_active = True
-        # hlp.set_new_active(active_instance)
-    
-    def mark_pregen(self):
-        self.was_active = False
-        assign_to_state(self, State.PREGEN)
-
-    def is_ready_for_freeze(self):
-        if self.state == 
-        return has_passed(self.timestamp, duration):
-    
-    def check_should_auto_reset(self):
-        duration = 300.0
-        if has_passed(self.timestamp, duration):
-            self.mark_free()
-
-    
-    def mark_inactive(self):
-        # pause
-        # add to free
-
-    def mark_free(self):
-        self.state = State.FREE
-
-    def suspend(self):
-        self.is_suspended = True
-        run_ahk("suspendInstance", pid=self.PID)
-        
-
-    def resume(self):
-        self.is_suspended = False
-        run_ahk("resumeInstance", pid=self.PID)
+    def reset_active(self):
+        self.pause()
+        self.mark_inactive()
 
     def reset(self):
-        self.resume()
-        run_ahk("reset", pid=self.PID)
-        self.first_reset = False
-    
-    def mark_worldgen_finished(self):
-        hlp.run_ahk("pauseGame", pid=gen_instances[j].PID)
+        run_ahk("reset", pid=self.pid)
+
+    def pause(self):
+        hlp.run_ahk("pauseGame", pid=self.pid)
 
     def move_worlds(self, old_worlds):
         for dir_name in os.listdir(self.mcdir + "/saves"):
@@ -149,7 +205,7 @@ def set_new_active(inst, settings):
         inst.resume()
         # TODO: Update ls user config
         run_ahk("activateWindow", switchDelay=settings["switch-delay"],
-                pid=inst.PID, idx=inst.num, obsDelay=settings["obs-delay"])
+                pid=inst.pid, idx=inst.num, obsDelay=settings["obs-delay"])
         if settings["fullscreen"]:
             run_ahk("toggleFullscreen")
 
@@ -168,10 +224,8 @@ def file_to_script(script_name, **kwargs):
         script_str += ahk_script.read()
     return script_str
 
-
 def run_ahk(script_name, **kwargs):
     return ahk.run_script(file_to_script(script_name, **kwargs))
-
 
 def add_attempt():
     curr_attempts = 0

@@ -31,12 +31,10 @@ focused_instance = None
 list_with_focussed = None
 need_to_reset_timer = False
 
-
 max_concurrent = int(settings['max-concurrent'])
 max_concurrent_boot = int(settings['max-concurrent-boot'])
 
 unfreeze_delay = float(settings['unfreeze-delay']) / 1000.0
-
 
 def get_pids():
     return list(map(int, hlp.run_ahk("getPIDs", instances=int(settings['num-instances']), MultiMC=settings['multi-mc']).split("|")))
@@ -58,7 +56,6 @@ def try_set_focused(new_focused_inst):
             focused_instance = new_focused_instance
             focused_instance.mark_focused()
 
-
 def main_loop(sc):
     global active_instance
     global focused_instance
@@ -75,43 +72,38 @@ def main_loop(sc):
     num_working_instances = len(gen_instances) + len(booting_instances) + len(pregen_instances) + len(paused_instances) + unfrozen_queue_size
     num_booting_instances = len(booting_instances)
 
+    num_to_boot = max_concurrent - num_working_instances - len(free_instances)
+    num_to_boot = max(0,min(1, num_to_boot))
+
     # Handle dead instances
-    for i in range(max(1,max_concurrent_boot))):
+    for i in range(num_to_boot):
         inst = dead_instances[i]
-        if num_booting_instances == max_concurrent_boot:
-            continue
-        if num_working_instances == max_concurrent:
-            continue
-        inst = dead_instances[i]
-        inst.initialize()
+        inst.mark_booting()
+        inst.boot()
         num_booting_instances += 1
         num_working_instances += 1
     
     # Handle booting instances
     for inst in booting_instances:
-        if num_working_instances == max_concurrent:
+        if not inst.is_done_booting():
             continue
-        if get_time() - inst.timestamp < float(settings['boot-delay']):
-            continue
-        inst.timestamp = get_time()
-        # state = GENERATING
+        inst.mark_generating()
         inst.initialize_after_boot()
 
     # Handle pregen instances (recently unfrozen worlds that need to be generated)
     for inst in pregen_instances:
-        if num_working_instances == max_concurrent:
-            continue
-        if get_time() - inst.timestamp < unfreeze_delay:
+        if not inst.is_done_unfreezing():
             continue
         # state = GENERATING
+        inst.mark_generating()
         inst.reset()
-        num_working_instances += 1
 
     # Handle free instances
     for inst in free_instances:
         if num_working_instances == max_concurrent:
             continue
         if not inst.is_ready_for_unfreeze():
+            inst.suspend()
             continue
         # state = PREGEN
         inst.mark_pregen()
@@ -124,27 +116,25 @@ def main_loop(sc):
             continue
         # state = PAUSED
         inst.mark_worldgen_finished()
+        inst.pause()
 
     # Handle paused instances
     for inst in paused_instances:
         if not inst.is_ready_for_freeze():
             continue
-        if not inst.is_in_world(settings['lines-from-bottom']):
-            continue
         # state = READY
         inst.mark_ready()
+        inst.suspend()
 
     # Handle ready instances
     index = 0
     total_to_unfreeze = unfrozen_queue_size - len(approved_instances)
     for inst in ready_instances:
-        inst.check_should_auto_reset()
         index += 1
-        if index <= total_to_unfreeze:
-            if inst.is_suspended():
-                inst.resume()
+        if inst.check_should_auto_reset():
             continue
-        if inst.is_suspended():
+        if index <= total_to_unfreeze:
+            inst.resume()
             continue
         inst.suspend()
 
@@ -152,11 +142,11 @@ def main_loop(sc):
     index = 0
     total_to_unfreeze = unfrozen_queue_size
     for inst in approved_instances:
-        inst.check_should_auto_reset()
         index += 1
+        if inst.check_should_auto_reset():
+            continue
         if index <= total_to_unfreeze:
-            if inst.is_suspended():
-                inst.resume()
+            inst.resume()
             continue
         inst.suspend()
     
@@ -205,12 +195,13 @@ def main_loop(sc):
 def reset_active():
     global active_instance
     if listening and active_instance is not None:
-        active_instance.mark_inactive()
+        active_instance.reset_active()
 
 def reset_focused():
     global focused_instance
     if listening and focused_instance is not None:
-        focused_instance.mark_free()
+        if focused_instance.state = State.PAUSED or focused_instance.state = State.READY:
+            focused_instance.release()
 
 def approve_focused():
     global focused_instance
@@ -222,9 +213,9 @@ def toggle_hotkeys():
     global listening
     listening = not listening
 
-
 if __name__ == "__main__":
     # TODO: Automatically startup instances
+    assert unfrozen_queue_size < max_concurrent
     kb.add_hotkey(settings['hotkeys']['reset-active'], reset_active)
     kb.add_hotkey(settings['hotkeys']['reset-focused'], reset_focused)
     kb.add_hotkey(settings['hotkeys']['approve-focused'], approve_focused)

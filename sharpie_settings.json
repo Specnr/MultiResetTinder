@@ -1,0 +1,32 @@
+{
+  "disable-tts": true,
+  "fullscreen": false,
+  "count-attempts": true,
+  "auto-reset": true,
+  "freeze-delay": 170,
+  "fullscreen-delay": 100,
+  "switch-delay": 170,
+  "unfreeze-delay": 100,
+  "obs-delay": 50,
+  "loop-delay": 0.1,
+  "boot-delay": 1.0,
+  "multimc-executable": "/Applications/MultiMC.app/Contents/MacOS/MultiMC",
+  "template-instance": "1.16INST",
+  "num-instances": 3,
+  "lines-from-bottom": 2,
+  "old-worlds": "C:/MultiInstanceMC/oldWorlds",
+  "max-concurrent": 2, 
+  "max-concurrent-boot": 1,
+  "unfrozen-queue-size": 0,
+  "hotkeys": {
+    "reset-active": "U",
+    "reset-focused": "H",
+    "approve-focused": "J",
+    "toggle-hotkeys": "right alt"
+  },
+  "timer-hotkeys": {
+    "timer-reset": "F8",
+    "timer-start": "F9"
+  },
+  "test-mode": true
+}
