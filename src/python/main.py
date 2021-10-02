@@ -84,7 +84,7 @@ def main_loop(sc):
         if num_working_instances < int(settings["max-concurrent-gen"]):
             inst.resume()
             menu_instances.append(inst)
-            free_instances.remove(i)
+            free_instances.remove(j)
             j -= 1
         elif not free_instances[j].is_suspended:
             free_instances[j].suspend()
