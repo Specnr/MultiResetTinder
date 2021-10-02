@@ -1,4 +1,6 @@
 import helpers as hlp
+from instance import Instance
+import settings
 import json
 import sched
 import time
@@ -9,13 +11,10 @@ from datetime import datetime
 
 
 # Load settings
-with open("./settings.json", "r") as f:
-    settings = json.load(f)
-Path(settings["old-worlds"]).mkdir(parents=True, exist_ok=True)
 SCHEDULER = sched.scheduler(time.time, time.sleep)
 
 # Instance states
-all_instances = [hlp.Instance(-1, i+1) for i in range(int(settings['num-instances']))]
+all_instances = [Instance(-1, i+1) for i in range(int(settings['num-instances']))]
 dead_instances = [inst for inst in all_instances]
 booting_instances = []
 pregen_instances = []
@@ -36,8 +35,7 @@ max_concurrent_boot = int(settings['max-concurrent-boot'])
 
 unfreeze_delay = float(settings['unfreeze-delay']) / 1000.0
 
-def get_pids():
-    return list(map(int, hlp.run_ahk("getPIDs", instances=int(settings['num-instances']), MultiMC=settings['multi-mc']).split("|")))
+
 
 def try_set_active(new_active_instance):
     global active_instance
