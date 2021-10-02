@@ -6,17 +6,32 @@ from ahk import AHK
 ahk = AHK()
 
 
+num_per_state = {}
+'''
+states
+0 = dead
+1 = booting up
+2 = pregen
+3 = free
+4 = gen
+5 = paused
+6 = ready
+7 = approved
+8 = active
+'''
+
+
 class Instance:
-
-
 
     def __init__(self, num):
         self.num = num
+        self.priority = assign_to_state(self, 0)
         self.pid = -1
         self.first_reset = True
         self.is_suspended = False
-        self.when_genned = 0
+        self.state = -1
         self.timestamp = 0
+        self.was_active = False
     
     def boot(self):
         self.timestamp = time.time()
@@ -32,6 +47,7 @@ class Instance:
         hlp.run_ahk("updateTitle", pid=inst.PID,
             title=f"Minecraft* - Instance {i+1}")
         self.assign_pid(all_instances)
+        # start generating world
 
     def assign_pid(self, all_instances):
         all_pids = get_pids()
@@ -42,6 +58,11 @@ class Instance:
                     pid_maps_to_instance = True
             if not pid_maps_to_instance:
                 self.pid = pid
+    
+    def mark_active(self):
+        state = 8
+        was_active = True
+        # hlp.set_new_active(active_instance)
 
     def suspend(self):
         run_ahk("suspendInstance", pid=self.PID)
@@ -55,6 +76,9 @@ class Instance:
         self.resume()
         run_ahk("reset", pid=self.PID)
         self.first_reset = False
+    
+    def mark_worldgen_finished(self):
+        hlp.run_ahk("pauseGame", pid=gen_instances[j].PID)
 
     def move_worlds(self, old_worlds):
         for dir_name in os.listdir(self.mcdir + "/saves"):

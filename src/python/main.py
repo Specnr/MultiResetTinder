@@ -18,9 +18,10 @@ SCHEDULER = sched.scheduler(time.time, time.sleep)
 all_instances = [hlp.Instance(-1, i+1) for i in range(int(settings['num-instances']))]
 dead_instances = [inst for inst in all_instances]
 booting_instances = []
+pregen_instances = []
 free_instances = []
-menu_instances = []
 gen_instances = []
+paused_instances = []
 ready_instances = []
 approved_instances = []
 
@@ -31,8 +32,28 @@ list_with_focussed = None
 need_to_reset_timer = False
 
 
+max_concurrent = int(settings['max-concurrent'])
+max_concurrent_boot = int(settings['max-concurrent-boot'])
+
+unfreeze_delay = float(settings['unfreeze-delay']) / 1000.0
+
+
 def get_pids():
     return list(map(int, hlp.run_ahk("getPIDs", instances=int(settings['num-instances']), MultiMC=settings['multi-mc']).split("|")))
+
+def try_set_active(new_active_instance):
+    if active_instance is not None and new_active_instance is not None:
+        if new_active_instance.num != new_active_instance.num:
+            hlp.set_new_active(active_instance, settings)
+            active_instance = new_active_inst
+        active_instance.mark_active()
+
+def try_set_focused(new_focused_inst):
+    if active_instance is not None and new_focused_instance is not None:
+        if not focused_instance.is_ready() and new_focused_instance.num != focused_instance.num and new_focused_instance.num != active_instance.num:
+            hlp.set_new_focused(new_focused_instance)
+            focused_instance = new_focused_instance
+            focused_instance.mark_focused()
 
 
 def main_loop(sc):
@@ -45,161 +66,149 @@ def main_loop(sc):
         hlp.run_ahk("callTimer", timerReset=settings["timer-hotkeys"]["timer-reset"],
                     timerStart=settings["timer-hotkeys"]["timer-start"])
 
+    # remove active from all lists, focused can stay in lists
+    assign_lists(all_instances)
+
+    num_working_instances = len(gen_instances) + len(booting_instances) + len(pregen_instances) + len(paused_instances) + unfrozen_queue_size
+    num_booting_instances = len(booting_instances)
 
     # Handle dead instances
-    for i in range(max(1,int(settings['max-concurrent-boot']))):
-        inst = dead_instances.pop(0)
+    for i in range(max(1,max_concurrent_boot))):
+        inst = dead_instances[i]
+        if num_booting_instances == max_concurrent_boot:
+            continue
+        if num_working_instances == max_concurrent:
+            continue
+        inst = dead_instances[i]
         inst.initialize()
-        booting_instances.append(inst)
+        num_booting_instances += 1
+        num_working_instances += 1
     
     # Handle booting instances
-    j = 0
-    num_working_instances = len(booting_instances)
-    for i in range(len(booting_instances)):
-        inst = booting_instances[j]
-        if num_working_instances < int(settings['max-concurrent-gen']):
-            if get_time() - inst.timestamp > float(settings['boot-delay']):
-                inst.timestamp = get_time()
-                inst.initialize_after_boot(all_instances)
-                menu_instances.append(inst)
-                booting_instances.remove(j)
-                j -= 1
+    for inst in booting_instances:
+        if num_working_instances == max_concurrent:
+            continue
+        if get_time() - inst.timestamp < float(settings['boot-delay']):
+            continue
+        inst.timestamp = get_time()
+        # state = GENERATING
+        inst.initialize_after_boot()
 
-
-    # Handle menu instances (prepared to create world & unfrozen)
-    j = 0
-    for i in range(len(menu_instances)):
-        if num_working_instances < int(settings['max-concurrent-gen']):
-            inst = menu_instances[j]
-            if get_time() - inst.timestamp > float(settings['unfreeze-delay']*1000.0):
-                inst.reset()
-                menu_instances.remove(j)
-                j -= 1
+    # Handle pregen instances (recently unfrozen worlds that need to be generated)
+    for inst in pregen_instances:
+        if num_working_instances == max_concurrent:
+            continue
+        if get_time() - inst.timestamp < unfreeze_delay:
+            continue
+        # state = GENERATING
+        inst.reset()
+        num_working_instances += 1
 
     # Handle free instances
-    num_working_instances += len(gen_instances)
-    j = 0
-    for i in range(len(free_instances)):
-        inst = free_instances[j]
-        if num_working_instances < int(settings["max-concurrent-gen"]):
-            inst.resume()
-            menu_instances.append(inst)
-            free_instances.remove(j)
-            j -= 1
-        elif not free_instances[j].is_suspended:
-            free_instances[j].suspend()
-        j += 1
+    for inst in free_instances:
+        if num_working_instances == max_concurrent:
+            continue
+        if not inst.is_ready_for_unfreeze():
+            continue
+        # state = PREGEN
+        inst.mark_pregen()
+        inst.resume()
+        num_working_instances += 1
 
     # Handle world gen instances
-    for i in range(len(gen_instances)):
-        inst = gen_instances[j]
-        if inst.is_in_world(settings['lines-from-bottom']):
-            hlp.run_ahk("pauseGame", pid=gen_instances[j].PID)
-            inst.when_genned = get_time()
-            gen_instances.remove(j)
-            ready_instances.append(inst)
-        else:
-            j += 1
+    for inst in gen_instances:
+        if not inst.is_in_world(settings['lines-from-bottom']):
+            continue
+        # state = PAUSED
+        inst.mark_worldgen_finished()
 
-    # Pick focussed instance with priority
-    if focused_instance is None:
-        if len(ready_instances) > 0:
-            focused_instance = ready_instances[0]
-            list_with_focussed = ready_instances
-            hlp.set_new_focused(focused_instance)
-        elif len(gen_instances) > 0:
-            focused_instance = gen_instances[0]
-            list_with_focussed = gen_instances
-            hlp.set_new_focused(focused_instance)
-        else:
-            # Show a meme or something lol
-            pass
+    # Handle paused instances
+    for inst in paused_instances:
+        if not inst.is_ready_for_freeze():
+            continue
+        if not inst.is_in_world(settings['lines-from-bottom']):
+            continue
+        # state = PAUSED
+        inst.mark_ready()
 
     # Handle ready instances
-    j = 0
-    for i in range(len(ready_instances)):
-        delta = datetime.now() - ready_instances[j].when_genned
-        if not ready_instances[j].is_suspended and delta.total_seconds() * 1000 >= settings["freeze-delay"]:
-            ready_instances[j].suspend()
-        if settings["auto-reset"] and delta.total_seconds() / 60 >= 5:  # Auto reset after 5 minutes
-            free_instances.append(ready_instances.pop(j))
-            j -= 1
-        j += 1
+    index = 0
+    total_to_unfreeze = unfrozen_queue_size - len(approved_instances)
+    for inst in ready_instances:
+        inst.check_should_auto_reset()
+        index += 1
+        if index <= total_to_unfreeze:
+            continue
+        if inst.is_suspended():
+            continue
+        inst.suspend()
 
     # Handle approved instances
-    for i in range(len(approved_instances)):
-        delta = datetime.now() - approved_instances[j].when_genned
-        if not approved_instances[j].is_suspended and delta.total_seconds() * 1000 >= settings["freeze-delay"]:
-            approved_instances[j].suspend()
-        if settings["auto-reset"] and delta.total_seconds() / 60 >= 5:  # Auto reset after 5 minutes
-            free_instances.append(approved_instances.pop(j))
-            j -= 1
-        j += 1
-
-    # Set active instance
+    index = 0
+    total_to_unfreeze = unfrozen_queue_size
+    for inst in approved_instances:
+        inst.check_should_auto_reset()
+        index += 1
+        if index <= total_to_unfreeze:
+            continue
+        inst.suspend()
+    
+    # Pick active instance
     if active_instance is None:
+        # only needed for initialization
+        if len(ready_instances) > 0:
+            active_instance = ready_instances[0]
+            active_instance.mark_active()
+            hlp.set_new_active(active_instance)
+            need_to_reset_timer = True
+    elif not active_instance.is_active():
+        new_active_instance = None
         if len(approved_instances) > 0:
-            active_instance = approved_instances.pop(0)
-        elif focused_instance in ready_instances and len(ready_instances) > 1:
-            active_instance = ready_instances.pop(1)
-        elif not focused_instance in ready_instances and len(ready_instances) > 0:
-            active_instance = ready_instances.pop(0)
+            new_active_instance = approved_instances[0]
+        elif len(ready_instances) > 0:
+            new_active_instance = ready_instances[0]
+        elif len(paused_instances) > 0:
+            new_active_instance = paused_instances[0]
         elif len(gen_instances) > 0:
-            active_instance = gen_instances.pop(0)
-        hlp.set_new_active(active_instance, settings)
+            new_active_instance = gen_instances[0]
+        try_set_active(new_active_instance)
         need_to_reset_timer = True
+
+    # Pick focused instance
+    if focused_instance is None:
+        # only needed for initialization
+        if len(ready_instances) > 0 and active_instance is not None:
+            new_focused_instance = ready_instances[0]
+            if not new_focused_instance.is_active():
+                focused_instance.mark_focused()
+                hlp.set_new_focused(focused_instance)
+    else:
+        new_focused_instance = None
+        if len(ready_instances) > 0:
+            new_focused_instance = ready_instances[0]
+        elif len(paused_instances) > 0:
+            new_focused_instance = paused_instances[0]
+        elif len(gen_instances) > 0:
+            new_focused_instance = gen_instances[0]
+        try_set_focused(new_focused_instance)
+
     SCHEDULER.enter(settings["loop-delay"], 1, main_loop, (sc,))
 
 # Callbacks
 def reset_active():
     global active_instance
     if listening and active_instance is not None:
-        print("Reset Active")
-        hlp.run_ahk("pauseActive", pid=active_instance.PID)
-        free_instances.append(active_instance)
-        if len(approved_instances) > 0:
-            active_instance = approved_instances.pop(0)
-        elif len(ready_instances) > 0:
-            active_instance = ready_instances.pop(0)
-        elif len(gen_instances) > 0:
-            active_instance = gen_instances.pop(0)
-        hlp.set_new_active(active_instance, settings)
-        need_to_reset_timer = True
-
+        active_instance.mark_inactive()
 
 def reset_focused():
     global focused_instance
-    global list_with_focussed
     if listening and focused_instance is not None:
-        print("Reset Focused")
-        free_instances.append(focused_instance)
-        if list_with_focussed is not None:
-            list_with_focussed.remove(focused_instance)
-        if len(ready_instances) > 0:
-            focused_instance = ready_instances[0]
-            list_with_focussed = ready_instances
-        elif len(gen_instances) > 0:
-            focused_instance = gen_instances[0]
-            list_with_focussed = gen_instances
-        hlp.set_new_focused(focused_instance)
-
+        focused_instance.mark_free()
 
 def approve_focused():
     global focused_instance
-    global list_with_focussed
     if listening and focused_instance is not None:
-        print("Approve Focused")
-        approved_instances.append(focused_instance)
-        if list_with_focussed is not None:
-            list_with_focussed.remove(focused_instance)
-        if len(ready_instances) > 0:
-            focused_instance = ready_instances[0]
-            list_with_focussed = ready_instances
-        elif len(gen_instances) > 0:
-            focused_instance = gen_instances[0]
-            list_with_focussed = gen_instances
-        hlp.set_new_focused(focused_instance)
-
+        focused_instance.mark_approved()
 
 def toggle_hotkeys():
     print("Toggle Hotkeys")

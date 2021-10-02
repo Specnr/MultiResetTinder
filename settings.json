@@ -15,7 +15,7 @@
   "num-instances": 3,
   "lines-from-bottom": 2,
   "old-worlds": "C:/MultiInstanceMC/oldWorlds",
-  "max-concurrent-gen": 2, 
+  "max-concurrent": 2, 
   "max-concurrent-boot": 1,
   "unfrozen-queue-size": 0,
   "hotkeys": {
