@@ -7,14 +7,41 @@ ahk = AHK()
 
 
 class Instance:
-    when_genned = 0
-    first_reset = True
-    is_suspended = False
 
-    def __init__(self, pid, num, mcdir):
-        self.PID = pid
+
+
+    def __init__(self, num):
         self.num = num
-        self.mcdir = mcdir
+        self.pid = -1
+        self.first_reset = True
+        self.is_suspended = False
+        self.when_genned = 0
+        self.timestamp = 0
+    
+    def boot(self):
+        self.timestamp = time.time()
+
+
+    def create_multimc_instance(self):
+
+
+    def create_obs_instance(self):
+
+
+    def initialize_after_boot(self, all_instances):
+        hlp.run_ahk("updateTitle", pid=inst.PID,
+            title=f"Minecraft* - Instance {i+1}")
+        self.assign_pid(all_instances)
+
+    def assign_pid(self, all_instances):
+        all_pids = get_pids()
+        for pid in all_pids:
+            pid_maps_to_instance = False
+            for instance in all_instances:
+                if instance.pid == pid:
+                    pid_maps_to_instance = True
+            if not pid_maps_to_instance:
+                self.pid = pid
 
     def suspend(self):
         run_ahk("suspendInstance", pid=self.PID)

@@ -15,9 +15,11 @@ Path(settings["old-worlds"]).mkdir(parents=True, exist_ok=True)
 SCHEDULER = sched.scheduler(time.time, time.sleep)
 
 # Instance states
-dead_instances = [hlp.Instance(-1, i+1, settings["mc-folders"][i])
-                  for i in range(len(settings["mc-folders"]))]
+all_instances = [hlp.Instance(-1, i+1) for i in range(int(settings['num-instances']))]
+dead_instances = [inst for inst in all_instances]
+booting_instances = []
 free_instances = []
+menu_instances = []
 gen_instances = []
 ready_instances = []
 approved_instances = []
@@ -27,6 +29,10 @@ active_instance = None
 focused_instance = None
 list_with_focussed = None
 need_to_reset_timer = False
+
+
+def get_pids():
+    return list(map(int, hlp.run_ahk("getPIDs", instances=int(settings['num-instances']), MultiMC=settings['multi-mc']).split("|")))
 
 
 def main_loop(sc):
@@ -39,26 +45,59 @@ def main_loop(sc):
         hlp.run_ahk("callTimer", timerReset=settings["timer-hotkeys"]["timer-reset"],
                     timerStart=settings["timer-hotkeys"]["timer-start"])
 
+
+    # Handle dead instances
+    for i in range(max(1,int(settings['max-concurrent-boot']))):
+        inst = dead_instances.pop(0)
+        inst.initialize()
+        booting_instances.append(inst)
+    
+    # Handle booting instances
+    j = 0
+    num_working_instances = len(booting_instances)
+    for i in range(len(booting_instances)):
+        inst = booting_instances[j]
+        if num_working_instances < int(settings['max-concurrent-gen']):
+            if get_time() - inst.timestamp > float(settings['boot-delay']):
+                inst.timestamp = get_time()
+                inst.initialize_after_boot(all_instances)
+                menu_instances.append(inst)
+                booting_instances.remove(j)
+                j -= 1
+
+
+    # Handle menu instances (prepared to create world & unfrozen)
+    j = 0
+    for i in range(len(menu_instances)):
+        if num_working_instances < int(settings['max-concurrent-gen']):
+            inst = menu_instances[j]
+            if get_time() - inst.timestamp > float(settings['unfreeze-delay']*1000.0):
+                inst.reset()
+                menu_instances.remove(j)
+                j -= 1
+
     # Handle free instances
+    num_working_instances += len(gen_instances)
     j = 0
     for i in range(len(free_instances)):
-        if len(gen_instances) < settings["max-concurrent-gen"]:
-            free_instances[j].resume()
-            free_instances[j].reset()
-            gen_instances.append(free_instances.pop(j))
+        inst = free_instances[j]
+        if num_working_instances < int(settings["max-concurrent-gen"]):
+            inst.resume()
+            menu_instances.append(inst)
+            free_instances.remove(i)
+            j -= 1
         elif not free_instances[j].is_suspended:
             free_instances[j].suspend()
-            j += 1
-        else:
-            j += 1
+        j += 1
 
     # Handle world gen instances
-    j = 0
     for i in range(len(gen_instances)):
-        if gen_instances[j].is_in_world(settings['lines-from-bottom']):
+        inst = gen_instances[j]
+        if inst.is_in_world(settings['lines-from-bottom']):
             hlp.run_ahk("pauseGame", pid=gen_instances[j].PID)
-            gen_instances[j].when_genned = datetime.now()
-            ready_instances.append(gen_instances.pop(j))
+            inst.when_genned = get_time()
+            gen_instances.remove(j)
+            ready_instances.append(inst)
         else:
             j += 1
 
@@ -109,7 +148,6 @@ def main_loop(sc):
         hlp.set_new_active(active_instance, settings)
         need_to_reset_timer = True
     SCHEDULER.enter(settings["loop-delay"], 1, main_loop, (sc,))
-
 
 # Callbacks
 def reset_active():
@@ -170,15 +208,6 @@ def toggle_hotkeys():
 
 if __name__ == "__main__":
     # TODO: Automatically startup instances
-    PIDs = list(map(int, hlp.run_ahk(
-        "getPIDs", instances=len(settings["mc-folders"]), MultiMC=settings['multi-mc']).split("|")))
-    for i in range(len(dead_instances)):
-        inst = dead_instances.pop(0)
-        inst.PID = PIDs[i]
-        inst.resume()
-        hlp.run_ahk("updateTitle", pid=inst.PID,
-                    title=f"Minecraft* - Instance {i+1}")
-        free_instances.append(inst)
     kb.add_hotkey(settings['hotkeys']['reset-active'], reset_active)
     kb.add_hotkey(settings['hotkeys']['reset-focused'], reset_focused)
     kb.add_hotkey(settings['hotkeys']['approve-focused'], approve_focused)
