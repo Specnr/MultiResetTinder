@@ -102,7 +102,6 @@ def main_loop(sc):
             j += 1
 
     # Pick focussed instance with priority
-    # Could focus approved, might be confusing tho, idk
     if focused_instance is None:
         if len(ready_instances) > 0:
             focused_instance = ready_instances[0]
@@ -116,7 +115,7 @@ def main_loop(sc):
             # Show a meme or something lol
             pass
 
-    # Handle ready and approved instances
+    # Handle ready instances
     j = 0
     for i in range(len(ready_instances)):
         delta = datetime.now() - ready_instances[j].when_genned
@@ -127,6 +126,7 @@ def main_loop(sc):
             j -= 1
         j += 1
 
+    # Handle approved instances
     for i in range(len(approved_instances)):
         delta = datetime.now() - approved_instances[j].when_genned
         if not approved_instances[j].is_suspended and delta.total_seconds() * 1000 >= settings["freeze-delay"]:
@@ -136,6 +136,7 @@ def main_loop(sc):
             j -= 1
         j += 1
 
+    # Set active instance
     if active_instance is None:
         if len(approved_instances) > 0:
             active_instance = approved_instances.pop(0)

@@ -17,6 +17,7 @@
   "old-worlds": "C:/MultiInstanceMC/oldWorlds",
   "max-concurrent-gen": 2, 
   "max-concurrent-boot": 1,
+  "unfrozen-queue-size": 0,
   "hotkeys": {
     "reset-active": "U",
     "reset-focused": "H",
