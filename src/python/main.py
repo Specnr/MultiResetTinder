@@ -42,13 +42,16 @@ def get_pids():
     return list(map(int, hlp.run_ahk("getPIDs", instances=int(settings['num-instances']), MultiMC=settings['multi-mc']).split("|")))
 
 def try_set_active(new_active_instance):
+    global active_instance
     if active_instance is not None and new_active_instance is not None:
-        if new_active_instance.num != new_active_instance.num:
+        if new_active_instance.num != active_instance.num:
             hlp.set_new_active(active_instance, settings)
-            active_instance = new_active_inst
+            active_instance = new_active_instance
         active_instance.mark_active()
 
 def try_set_focused(new_focused_inst):
+    global active_instance
+    global focused_instance
     if active_instance is not None and new_focused_instance is not None:
         if not focused_instance.is_ready() and new_focused_instance.num != focused_instance.num and new_focused_instance.num != active_instance.num:
             hlp.set_new_focused(new_focused_instance)
@@ -128,7 +131,7 @@ def main_loop(sc):
             continue
         if not inst.is_in_world(settings['lines-from-bottom']):
             continue
-        # state = PAUSED
+        # state = READY
         inst.mark_ready()
 
     # Handle ready instances
@@ -138,6 +141,8 @@ def main_loop(sc):
         inst.check_should_auto_reset()
         index += 1
         if index <= total_to_unfreeze:
+            if inst.is_suspended():
+                inst.resume()
             continue
         if inst.is_suspended():
             continue
@@ -150,6 +155,8 @@ def main_loop(sc):
         inst.check_should_auto_reset()
         index += 1
         if index <= total_to_unfreeze:
+            if inst.is_suspended():
+                inst.resume()
             continue
         inst.suspend()
     

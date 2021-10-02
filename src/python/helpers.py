@@ -7,19 +7,25 @@ ahk = AHK()
 
 
 num_per_state = {}
-'''
-states
-0 = dead
-1 = booting up
-2 = pregen
-3 = free
-4 = gen
-5 = paused
-6 = ready
-7 = approved
-8 = active
-'''
 
+
+def assign_to_state(instance, state):
+    global num_per_state
+    if state not in num_per_state:
+        num_per_state[state] = 0
+    
+
+
+class State(Enum):
+    DEAD = 0
+    BOOTING = 1
+    FREE = 2
+    PREGEN = 3
+    GEN = 4
+    PAUSED = 5
+    READY = 6
+    APPROVED = 7
+    ACTIVE = 8
 
 class Instance:
 
@@ -28,7 +34,7 @@ class Instance:
         self.priority = assign_to_state(self, 0)
         self.pid = -1
         self.first_reset = True
-        self.is_suspended = False
+        self.suspended = False
         self.state = -1
         self.timestamp = 0
         self.was_active = False
@@ -41,6 +47,10 @@ class Instance:
 
 
     def create_obs_instance(self):
+
+
+    def is_suspended(self):
+        return self.suspended
 
 
     def initialize_after_boot(self, all_instances):
@@ -60,17 +70,39 @@ class Instance:
                 self.pid = pid
     
     def mark_active(self):
-        state = 8
+        assign_to_state(self, State.ACTIVE)
         was_active = True
         # hlp.set_new_active(active_instance)
+    
+    def mark_pregen(self):
+        self.was_active = False
+        assign_to_state(self, State.PREGEN)
+
+    def is_ready_for_freeze(self):
+        if self.state == 
+        return has_passed(self.timestamp, duration):
+    
+    def check_should_auto_reset(self):
+        duration = 300.0
+        if has_passed(self.timestamp, duration):
+            self.mark_free()
+
+    
+    def mark_inactive(self):
+        # pause
+        # add to free
+
+    def mark_free(self):
+        self.state = State.FREE
 
     def suspend(self):
-        run_ahk("suspendInstance", pid=self.PID)
         self.is_suspended = True
+        run_ahk("suspendInstance", pid=self.PID)
+        
 
     def resume(self):
-        run_ahk("resumeInstance", pid=self.PID)
         self.is_suspended = False
+        run_ahk("resumeInstance", pid=self.PID)
 
     def reset(self):
         self.resume()
@@ -132,7 +164,7 @@ def file_to_script(script_name, **kwargs):
     script_str = ""
     for key in kwargs:
         script_str += f'global {key} := "{kwargs[key]}"\n'
-    with open("./ahk/" + script_name + ".ahk", "r") as ahk_script:
+    with open("../ahk/" + script_name + ".ahk", "r") as ahk_script:
         script_str += ahk_script.read()
     return script_str
 

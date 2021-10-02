@@ -27,5 +27,6 @@
   "timer-hotkeys": {
     "timer-reset": "F8",
     "timer-start": "F9"
-  }
+  },
+  "test-mode": true
 }
