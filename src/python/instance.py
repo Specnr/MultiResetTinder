@@ -153,10 +153,22 @@ class Instance(ConditionalTransitionable):
 
     # not yet implemented
     def create_multimc_instance(self):
+        # probably just add --import parameter to call of multimc executable
         pass
 
     # not yet implemented
     def create_obs_instance(self):
+        # create a source with this:
+        # https://github.com/Elektordi/obs-websocket-py/blob/master/obswebsocket/requests.py#L551
+        # we can create a source that is a copy of a different source returned from
+        # https://github.com/Elektordi/obs-websocket-py/blob/master/obswebsocket/requests.py#L524
+
+        # obs1
+        #      create a source for when this instance is active
+        #   create a source for when this instance is focused
+        # obs2
+        #   create a source for this instance
+        #       tile based on total number of instances
         pass
 
     def initialize_after_boot(self, all_instances):
