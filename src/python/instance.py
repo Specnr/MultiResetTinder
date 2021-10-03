@@ -192,11 +192,13 @@ class Instance(ConditionalTransitionable):
     def pause(self):
         hlp.run_ahk("pauseGame", pid=self.pid)
 
+    # TODO - call this method somewhere
     def move_worlds(self, old_worlds):
         if settings.is_test_mode():
             print("Moving worlds for instance {}".format(self.name))
             return
         for dir_name in os.listdir(self.mcdir + "/saves"):
+            # TODO - i think this should be like "Attempt #X" or something cuz of duncan mod
             if dir_name.startswith("New World"):
                 try:
                     shutil.move(self.mcdir + "/saves/" + dir_name,
@@ -204,12 +206,19 @@ class Instance(ConditionalTransitionable):
                 except:
                     continue
 
+    # TODO - call this method somewhere
+    def copy_logs(self):
+        # we should copy all relevant logs out of the instance probably since we want to dynamically create instances
+        pass
+
     def read_logs(self, func_check, lines_from_bottom=2):
         if settings.is_test_mode():
             print("Reading logs for instance {}".format(self.name))
             if has_passed(self.timestamp, 5.0):
                 return True
             return False
+        # this could be a lot faster quite easily. if it's a performance issue, we can check latest modification time on world or something
+        # something besides this which is quite slow.
         log_file = self.mcdir + "/logs/latest.log"
         with open(log_file, "r") as logs:
             lines = logs.readlines()

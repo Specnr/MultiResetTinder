@@ -14,7 +14,8 @@ def get_time():
 def get_pids():
     if settings.is_test_mode():
         return list(inst for inst in queues.get_all_instances() if inst.pid != -1)
-    return list(map(int, hlp.run_ahk("getPIDs", instances=int(settings['num-instances']), MultiMC=settings['multi-mc']).split("|")))
+    # TODO - check that this actually works correctly
+    return list(map(int, hlp.run_ahk("getPIDs", instances=int(settings.get_num_instances()), MultiMC=True).split("|")))
 
 def is_livesplit_open():
     return ahk.find_window(title=b"LiveSplit") is not None
@@ -24,7 +25,7 @@ def set_new_active(inst):
         run_ahk("updateTitle", pid=inst.pid,
                 title="Minecraft* - Active Instance")
         inst.resume()
-        # TODO: Update ls user config
+        # TODO: Update ls user config (is this still needed?)
         run_ahk("activateWindow", switchDelay=settings.get_switch_delay(),
                 pid=inst.pid, idx=inst.num, obsDelay=settings.get_obs_delay())
         if settings.is_fullscreen_enabled():
@@ -33,6 +34,8 @@ def set_new_active(inst):
 
 def set_new_focused(inst):
     if inst is not None:
+        # we need to move this to second monitor or something then fullscreen
+        # also need to switch out old focused to tile
         run_ahk("updateTitle", pid=inst.pid,
                 title="Minecraft* - Focused Instance")
 

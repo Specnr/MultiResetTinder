@@ -10,7 +10,6 @@ import keyboard as kb
 from pathlib import Path
 from datetime import datetime
 
-
 # Load settings
 SCHEDULER = sched.scheduler(time.time, time.sleep)
 
@@ -28,8 +27,6 @@ unfrozen_queue_size = settings.get_unfrozen_queue_size()
 unfreeze_delay = settings.get_unfreeze_delay()
 
 last_log_time = time.time()
-
-
 
 def try_set_active(new_active_instance):
     global active_instance
@@ -63,7 +60,6 @@ def main_loop(sc):
             for value in tmp_all_queues[key]:
                 print(value,end=" ")
             print()
-        # print(*(str(tmp_all_queues[key][value]) for value in tmp_all_queues[key] for key in tmp_all_queues.keys()))
 
     if need_to_reset_timer and hlp.is_livesplit_open():
         hlp.run_ahk("callTimer", timerReset=settings["timer-hotkeys"]["timer-reset"],
@@ -80,10 +76,6 @@ def main_loop(sc):
 
     num_to_boot = min(num_to_boot, max_concurrent_boot-len(queues.get_booting_instances()))
     num_to_boot = min(num_to_boot, len(queues.get_dead_instances()))
-
-    # print(*(x for x in queues.get_dead_instances()))
-    # print(time.time())
-
 
     # Handle dead instances
     for i in range(num_to_boot):
@@ -108,7 +100,7 @@ def main_loop(sc):
         inst.mark_generating()
         inst.reset()
 
-    # Handle free instances
+    # Handle free instances (frozen instances that are on a world, and we've decided to reset this world)
     for inst in queues.get_free_instances():
         if num_working_instances == max_concurrent:
             continue
@@ -126,18 +118,21 @@ def main_loop(sc):
             continue
         # state = PAUSED
         inst.mark_worldgen_finished()
+        # TODO - why do we need to pause after creating a world? shouldnt it auto-pause?
         inst.pause()
 
     # Handle paused instances
     for inst in queues.get_paused_instances():
+        # let chunks load some amount
         if not inst.is_ready_for_freeze():
             continue
         # state = READY
         inst.mark_ready()
         inst.suspend()
 
-    # Handle ready instances
+    # Handle ready instances (paused instances on a world we haven't evaluated yet. may or may not be frozen)
     index = 0
+    # make sure we prioritize having approved worlds unfrozen since they will become active before us
     total_to_unfreeze = unfrozen_queue_size - len(queues.get_approved_instances())
     for inst in queues.get_ready_instances():
         index += 1
@@ -150,6 +145,7 @@ def main_loop(sc):
 
     # Handle approved instances
     index = 0
+    # this is fine because we will either loop up to this number, and all ready are frozen, or we will loop to less than this number anyways
     total_to_unfreeze = unfrozen_queue_size
     for inst in queues.get_approved_instances():
         index += 1
@@ -162,7 +158,7 @@ def main_loop(sc):
     
     # Pick active instance
     if active_instance is None:
-        # only needed for initialization
+        # only needed for initialization, so let's just show nothing until a world is ready
         if len(queues.get_ready_instances()) > 0:
             active_instance = queues.get_ready_instances()[0]
             active_instance.mark_active()
@@ -183,9 +179,10 @@ def main_loop(sc):
 
     # Pick focused instance
     if focused_instance is None:
-        # only needed for initialization
+        # only needed for initialization, so let's just show nothing until a world is ready
         if len(queues.get_ready_instances()) > 0 and active_instance is not None:
             new_focused_instance = queues.get_ready_instances()[0]
+            # we don't want an instance to be both focused and active
             if not new_focused_instance.is_active():
                 focused_instance.mark_focused()
                 hlp.set_new_focused(focused_instance)
