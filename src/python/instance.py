@@ -1,8 +1,11 @@
+import settings
 import helpers as hlp
+from helpers import get_time
 import os
 import shutil
 import uuid
 from datetime import datetime
+from enum import Enum
 
 num_per_state = {}
 
@@ -11,7 +14,11 @@ def assign_to_state(instance, state):
     if state not in num_per_state:
         num_per_state[state] = 0
     num_per_state[state] = num_per_state[state] + 1
+    instance.state = state
     instance.priority = num_per_state[state]
+
+def has_passed(start_time, duration):
+    return (hlp.get_time() - start_time) > duration
 
 class State(Enum):
     DEAD = 0
@@ -44,13 +51,13 @@ class Suspendable(Process):
         if self.is_suspended():
             return
         self.suspended = True
-        run_ahk("suspendInstance", pid=self.pid)
+        hlp.run_ahk("suspendInstance", pid=self.pid)
 
     def resume(self):
         if not self.is_suspended():
             return
         self.is_suspended = False
-        run_ahk("resumeInstance", pid=self.pid)
+        hlp.run_ahk("resumeInstance", pid=self.pid)
 
     def is_suspended(self):
         return self.suspended
@@ -68,6 +75,7 @@ class Stateful(Suspendable):
     
     def mark_generating(self):
         assign_to_state(self, State.GEN)
+        self.timestamp = get_time()
     
     def mark_worldgen_finished(self):
         assign_to_state(self, State.PAUSED)
@@ -84,7 +92,7 @@ class Stateful(Suspendable):
         self.timestamp = get_time()
 
     def mark_ready(self):
-        pass
+        assign_to_state(self, State.READY)
 
     def mark_active(self):
         assign_to_state(self, State.ACTIVE)
@@ -97,7 +105,10 @@ class Stateful(Suspendable):
 
 class ConditionalTransitionable(Stateful):
 
+
+
     def is_ready_for_freeze(self):
+        duration = 2.0
         if self.state == State.PAUSED:
             duration = 2.0
         return has_passed(self.timestamp, duration)
@@ -109,27 +120,36 @@ class ConditionalTransitionable(Stateful):
     def is_ready_for_unfreeze(self):
         duration = 0.5
         return has_passed(self.timestamp, duration)
+    
+    def is_done_booting(self):
+        duration = settings.get_boot_delay()
+        return has_passed(self.timestamp, duration)
 
     def check_should_auto_reset(self):
         duration = 300.0
         if has_passed(self.timestamp, duration):
             self.release()
             return True
+            
+
+    def is_active(self):
+        return self.state == State.ACTIVE
 
 class Instance(ConditionalTransitionable):
 
     def __init__(self, num):
         self.num = num
-        self.priority = assign_to_state(self, 0)
         self.pid = -1
         self.first_reset = True
         self.suspended = False
-        self.state = -1
+        self.state = State.DEAD
+        assign_to_state(self, self.state)
         self.timestamp = 0
         self.was_active = False
+        self.name = '{}{}'.format(settings.get_base_instance_name(), self.num)
     
     def boot(self):
-        hlp.run_cmd('{} --launch "{}"'.format(executable, inst_name))
+        hlp.run_cmd('{} --launch "{}"'.format(settings.get_multimc_executable(), self.name))
 
     # not yet implemented
     def create_multimc_instance(self):
@@ -144,7 +164,7 @@ class Instance(ConditionalTransitionable):
         self.assign_pid(all_instances)
         # set our title
         hlp.run_ahk("updateTitle", pid=self.pid,
-            title=f"Minecraft* - Instance {i+1}")
+            title="Minecraft* - Instance {}".format(self.num))
         # start generating world w/ duncan mod
         hlp.run_ahk("startDuncanModSession", pid=self.pid)
         # set state to generating
@@ -161,6 +181,9 @@ class Instance(ConditionalTransitionable):
         hlp.run_ahk("pauseGame", pid=self.pid)
 
     def move_worlds(self, old_worlds):
+        if settings.is_test_mode():
+            print("Moving worlds for instance {}".format(self.name))
+            return
         for dir_name in os.listdir(self.mcdir + "/saves"):
             if dir_name.startswith("New World"):
                 try:
@@ -170,6 +193,11 @@ class Instance(ConditionalTransitionable):
                     continue
 
     def read_logs(self, func_check, lines_from_bottom=2):
+        if settings.is_test_mode():
+            print("Reading logs for instance {}".format(self.name))
+            if has_passed(self.timestamp, 5.0):
+                return True
+            return False
         log_file = self.mcdir + "/logs/latest.log"
         with open(log_file, "r") as logs:
             lines = logs.readlines()
@@ -180,7 +208,8 @@ class Instance(ConditionalTransitionable):
         return False
 
     def is_in_world(self, lines_from_bottom=2):
-        if self.first_reset:
-            return False
         # Read logs and see if is done world gen
         return self.read_logs(lambda x: "Saving chunks for level 'ServerLevel" in x and "minecraft:the_end" in x, lines_from_bottom)
+
+    def __str__(self):
+        return self.name

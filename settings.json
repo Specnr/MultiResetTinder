@@ -8,8 +8,8 @@
   "switch-delay": 170,
   "unfreeze-delay": 100,
   "obs-delay": 50,
-  "loop-delay": 0.1,
-  "boot-delay": 1.0,
+  "loop-delay": 100,
+  "boot-delay": 10.0,
   "multimc-executable": "/Applications/MultiMC.app/Contents/MacOS/MultiMC",
   "template-instance": "1.16INST",
   "num-instances": 3,
@@ -22,7 +22,7 @@
     "reset-active": "U",
     "reset-focused": "H",
     "approve-focused": "J",
-    "toggle-hotkeys": "right alt"
+    "toggle-hotkeys": "R"
   },
   "timer-hotkeys": {
     "timer-reset": "F8",

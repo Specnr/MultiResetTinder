@@ -1,3 +1,3 @@
 # TODO - delete this file
 
-python src/python/main.py
+python3 src/python/main.py
