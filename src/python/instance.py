@@ -45,7 +45,6 @@ class Process:
             if not pid_maps_to_instance:
                 self.pid = pid
 
-
 class Suspendable(Process):
     def suspend(self):
         if self.is_suspended():
@@ -61,7 +60,6 @@ class Suspendable(Process):
 
     def is_suspended(self):
         return self.suspended
-
 
 class Stateful(Suspendable):
 
@@ -102,10 +100,7 @@ class Stateful(Suspendable):
         # add to pregen
         self.mark_pregen()
 
-
 class ConditionalTransitionable(Stateful):
-
-
 
     def is_ready_for_freeze(self):
         duration = 2.0
@@ -149,14 +144,14 @@ class Instance(ConditionalTransitionable):
         self.name = '{}{}'.format(settings.get_base_instance_name(), self.num)
     
     def boot(self):
-        hlp.run_cmd('{} --launch "{}"'.format(settings.get_multimc_executable(), self.name))
-
-    # not yet implemented
+        hlp.run_ahk("openOfflineInstance", pid=self.pid)
+        
+    # not yet implemented (not needed in v1)
     def create_multimc_instance(self):
-        # probably just add --import parameter to call of multimc executable
+        # probably make some click macro to import instance from zip
         pass
 
-    # not yet implemented
+    # not yet implemented (not needed in v1)
     def create_obs_instance(self):
         # create a source with this:
         # https://github.com/Elektordi/obs-websocket-py/blob/master/obswebsocket/requests.py#L551
@@ -219,6 +214,8 @@ class Instance(ConditionalTransitionable):
             return False
         # this could be a lot faster quite easily. if it's a performance issue, we can check latest modification time on world or something
         # something besides this which is quite slow.
+
+        # also we can try just like, not doing this. since we can try removing pause after creating world and just use the auto-pause on non-focused feature of MC.
         log_file = self.mcdir + "/logs/latest.log"
         with open(log_file, "r") as logs:
             lines = logs.readlines()

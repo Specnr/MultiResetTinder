@@ -51,8 +51,7 @@ def main_loop(sc):
     global need_to_reset_timer
     global last_log_time
 
-
-    if time.time() - last_log_time > settings.get_debug_interval():
+    if settings.is_test_mode() and time.time() - last_log_time > settings.get_debug_interval():
         last_log_time = time.time()
         tmp_all_queues = queues.get_all_queues()
         for key in tmp_all_queues.keys():

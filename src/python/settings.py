@@ -4,7 +4,6 @@ import json
 with open("./settings.json", "r") as f:
     settings = json.load(f)
 
-
 global_pid = 81461
 
 def is_test_mode():

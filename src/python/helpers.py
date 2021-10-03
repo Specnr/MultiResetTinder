@@ -2,6 +2,7 @@ import time
 import os
 import shutil
 import uuid
+import subprocess as sp
 from datetime import datetime
 import settings
 if not settings.is_test_mode():
@@ -31,14 +32,13 @@ def set_new_active(inst):
         if settings.is_fullscreen_enabled():
             run_ahk("toggleFullscreen")
 
-
 def set_new_focused(inst):
     if inst is not None:
+        # TODO - move focused
         # we need to move this to second monitor or something then fullscreen
         # also need to switch out old focused to tile
         run_ahk("updateTitle", pid=inst.pid,
                 title="Minecraft* - Focused Instance")
-
 
 def file_to_script(script_name, **kwargs):
     script_str = ""
@@ -47,13 +47,6 @@ def file_to_script(script_name, **kwargs):
     with open("../ahk/" + script_name + ".ahk", "r") as ahk_script:
         script_str += ahk_script.read()
     return script_str
-
-def run_cmd(cmd):
-    if settings.is_test_mode():
-        print("Run command {}".format(cmd))
-        return
-    # TODO - run the command
-    pass
 
 def run_ahk(script_name, **kwargs):
     if settings.is_test_mode():
