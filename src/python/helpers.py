@@ -5,6 +5,7 @@ import uuid
 import subprocess as sp
 from datetime import datetime
 import settings
+from pathlib import Path
 if not settings.is_test_mode():
     from ahk import AHK
     ahk = AHK()
@@ -44,7 +45,8 @@ def file_to_script(script_name, **kwargs):
     script_str = ""
     for key in kwargs:
         script_str += f'global {key} := "{kwargs[key]}"\n'
-    with open("../ahk/" + script_name + ".ahk", "r") as ahk_script:
+    path = Path.cwd() / "src" / "ahk" / "{}.ahk".format(script_name)
+    with open(path, "r") as ahk_script:
         script_str += ahk_script.read()
     return script_str
 
