@@ -1,1 +1,1 @@
-https://github.com/Sharpieman20/MultiResetTinder/releases/download/release/release.zip
+https://raw.githubusercontent.com/Sharpieman20/MultiResetTinder/main/test/setup.py
