@@ -10,7 +10,7 @@
   "obs-delay": 50,
   "loop-delay": 100,
   "boot-delay": 10.0,
-  "multimc-executable": "/Applications/MultiMC.app/Contents/MacOS/MultiMC",
+  "multimc-executable": "$HOME/Applications/MultiMC.app/Contents/MacOS/MultiMC",
   "template-instance": "1.16INST",
   "num-instances": 3,
   "lines-from-bottom": 2,
@@ -28,5 +28,5 @@
     "timer-reset": "F8",
     "timer-start": "F9"
   },
-  "test-mode": true
+  "test-mode": false
 }
