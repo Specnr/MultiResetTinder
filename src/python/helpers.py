@@ -17,7 +17,7 @@ def get_pids():
     if settings.is_test_mode():
         return list(inst for inst in queues.get_all_instances() if inst.pid != -1)
     # TODO - check that this actually works correctly
-    return list(map(int, hlp.run_ahk("getPIDs", instances=int(settings.get_num_instances()), MultiMC=True).split("|")))
+    return list(map(int, run_ahk("getPIDs", instances=int(settings.get_num_instances()), MultiMC=True).split("|")))
 
 def is_livesplit_open():
     return ahk.find_window(title=b"LiveSplit") is not None

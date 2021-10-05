@@ -6,6 +6,7 @@ import shutil
 import uuid
 from datetime import datetime
 from enum import Enum
+from pathlib import Path
 
 num_per_state = {}
 
@@ -39,7 +40,7 @@ class Process:
         all_pids = hlp.get_pids()
         for pid in all_pids:
             pid_maps_to_instance = False
-            for instance in all_instances:
+            for instance in all_processes:
                 if instance.pid == pid:
                     pid_maps_to_instance = True
             if not pid_maps_to_instance:
@@ -142,6 +143,7 @@ class Instance(ConditionalTransitionable):
         self.timestamp = 0
         self.was_active = False
         self.name = '{}{}'.format(settings.get_base_instance_name(), self.num)
+        self.mcdir = settings.get_multimc_executable() / "Instances" / self.name
     
     def boot(self):
         hlp.run_ahk("openOfflineInstance", pid=self.pid)
