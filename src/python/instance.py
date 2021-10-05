@@ -218,7 +218,7 @@ class Instance(ConditionalTransitionable):
         # something besides this which is quite slow.
 
         # also we can try just like, not doing this. since we can try removing pause after creating world and just use the auto-pause on non-focused feature of MC.
-        log_file = self.mcdir + "/logs/latest.log"
+        log_file = self.mcdir / "logs" / "latest.log"
         with open(log_file, "r") as logs:
             lines = logs.readlines()
             for i in range(len(lines)):
