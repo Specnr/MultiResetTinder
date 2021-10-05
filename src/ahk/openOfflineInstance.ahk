@@ -8,9 +8,10 @@ SetKeyDelay, 0
 ; Launch Offline: 1200, 235
 instances := 4
 WinActivate, MultiMC
-WinMove, A,,0,0,1280,720
+WinMove, A,,1920,0,2800,720
 Loop, %instances% {
-  Send, {Click 1200, 235} ; Launch Offline
+  Send, {Click 2700, 235} ; Launch Offline
+  WinActivate, MultiMC
   slp := 150 * A_Index
   sleep, %slp%
   Send, {Enter} ; Select Name

@@ -143,7 +143,7 @@ class Instance(ConditionalTransitionable):
         self.timestamp = 0
         self.was_active = False
         self.name = '{}{}'.format(settings.get_base_instance_name(), self.num)
-        self.mcdir = settings.get_multimc_executable() / "Instances" / self.name
+        self.mcdir = settings.get_multimc_executable() / "instances" / self.name / ".minecraft"
     
     def boot(self):
         hlp.run_ahk("openOfflineInstance", pid=self.pid)
