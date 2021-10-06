@@ -13,26 +13,28 @@
     "password": "password"
   },
   "freeze-delay": 170,
-  "fullscreen-delay": 100,
+  "fullscreen-delay": 50,
   "switch-delay": 170,
+  "unfreeze-delay": 100,
   "obs-delay": 50,
-  "mc-folders": [
-    "C:/MultiInstanceMC/MultiMC/instances/1.16INST1/.minecraft",
-    "C:/MultiInstanceMC/MultiMC/instances/1.16INST2/.minecraft",
-    "C:/MultiInstanceMC/MultiMC/instances/1.16INST3/.minecraft"
-  ],
+  "loop-delay": 100,
+  "boot-delay": 10.0,
+  "template-instance": "1.16INST",
+  "num-instances": 5,
   "old-worlds": "C:/MultiInstanceMC/oldWorlds",
-  "max-concurrent-gen": 2,
+  "max-concurrent": 5, 
+  "max-concurrent-boot": 5,
+  "unfrozen-queue-size": 0,
   "hotkeys": {
     "reset-active": "U",
     "reset-focused": "H",
     "approve-focused": "J",
-    "toggle-hotkeys": "right alt"
+    "toggle-hotkeys": "R"
   },
   "timer-hotkeys": {
     "timer-reset": "F8",
     "timer-start": "F9"
   },
-  "lines-from-bottom": 2,
-  "loop-delay": 0.01
+  "test-mode": false,
+  "auto-boot": false
 }
