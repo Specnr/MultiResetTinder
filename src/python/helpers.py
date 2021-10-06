@@ -20,6 +20,8 @@ def get_pids():
     return list(map(int, run_ahk("getPIDs", instances=int(settings.get_num_instances()), MultiMC=True).split("|")))
 
 def is_livesplit_open():
+    if settings.is_test_mode():
+        return  
     return ahk.find_window(title=b"LiveSplit") is not None
 
 def set_new_active(inst):
@@ -52,7 +54,7 @@ def file_to_script(script_name, **kwargs):
 
 def run_ahk(script_name, **kwargs):
     if settings.is_test_mode():
-        print("Run AHK script {}".format(script_name))
+        print("Run AHK script {} {}".format(script_name, kwargs))
         return
     return ahk.run_script(file_to_script(script_name, **kwargs))
 

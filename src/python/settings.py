@@ -1,8 +1,9 @@
 import json
 from pathlib import Path
+import sys
 
 
-with open("./settings.json", "r") as f:
+with open(sys.argv[1], "r") as f:
     settings = json.load(f)
 
 global_pid = 81461
@@ -62,5 +63,10 @@ def get_obs_delay():
 
 def is_fullscreen_enabled():
     return settings['fullscreen']
+
+def get_test_boot_time():
+    return 10.0
+
+def get_test_
 
 # Path(settings["old-worlds"]).mkdir(parents=True, exist_ok=True)

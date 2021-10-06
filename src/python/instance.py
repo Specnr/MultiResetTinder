@@ -32,6 +32,11 @@ class State(Enum):
     APPROVED = 7
     ACTIVE = 8
 
+class DisplayState(Enum):
+    HIDDEN = 0
+    FOCUSED = 1
+    PRIMARY = 2
+
 class Process:
     def assign_pid(self, all_processes):
         if settings.is_test_mode():
@@ -56,11 +61,13 @@ class Suspendable(Process):
     def resume(self):
         if not self.is_suspended():
             return
-        self.is_suspended = False
+        self.suspended = False
         hlp.run_ahk("resumeInstance", pid=self.pid)
 
     def is_suspended(self):
         return self.suspended
+
+
 
 class Stateful(Suspendable):
 
@@ -93,6 +100,9 @@ class Stateful(Suspendable):
     def mark_ready(self):
         assign_to_state(self, State.READY)
 
+    def is_ready(self):
+        return self.state == State.READY
+
     def mark_active(self):
         assign_to_state(self, State.ACTIVE)
         self.was_active = True
@@ -100,6 +110,14 @@ class Stateful(Suspendable):
     def mark_inactive(self):
         # add to pregen
         self.mark_pregen()
+
+class DisplayStateful(Stateful):
+
+    def mark_primary(self):
+
+
+    def is_primary(self):
+        return self.displayState == DisplayState.PRIMARY
 
 class ConditionalTransitionable(Stateful):
 
@@ -144,6 +162,7 @@ class Instance(ConditionalTransitionable):
         self.was_active = False
         self.name = '{}{}'.format(settings.get_base_instance_name(), self.num)
         self.mcdir = settings.get_multimc_executable() / "instances" / self.name / ".minecraft"
+        self.current_world = None
     
     def boot(self):
         hlp.run_ahk("openOfflineInstance", pid=self.pid)
@@ -208,28 +227,29 @@ class Instance(ConditionalTransitionable):
         # we should copy all relevant logs out of the instance probably since we want to dynamically create instances
         pass
 
-    def read_logs(self, func_check, lines_from_bottom=2):
+    def get_current_world(self):
+        if self.current_world is not None:
+            return self.current_world
+        max_time = 0.0
+        for world in (self.mcdir / "saves").iterdir():
+            world_time = world.stat().st_mtime
+            if world_time > max_time:
+                max_time = world_time
+                self.current_world = world
+        return self.current_world
+
+    def is_in_world(self):
         if settings.is_test_mode():
-            print("Reading logs for instance {}".format(self.name))
             if has_passed(self.timestamp, 5.0):
                 return True
             return False
-        # this could be a lot faster quite easily. if it's a performance issue, we can check latest modification time on world or something
-        # something besides this which is quite slow.
 
-        # also we can try just like, not doing this. since we can try removing pause after creating world and just use the auto-pause on non-focused feature of MC.
-        log_file = self.mcdir / "logs" / "latest.log"
-        with open(log_file, "r") as logs:
-            lines = logs.readlines()
-            for i in range(len(lines)):
-                if (len(lines) - i <= lines_from_bottom):
-                    if (func_check(lines[i])):
-                        return True
-        return False
+        cur_world = self.get_current_world()
 
-    def is_in_world(self, lines_from_bottom=2):
-        # Read logs and see if is done world gen
-        return self.read_logs(lambda x: "Saving chunks for level 'ServerLevel" in x and "minecraft:the_end" in x, lines_from_bottom)
+        if cur_world is None:
+            return False
+
+        return (cur_world / "icon.png").exists()
 
     def __str__(self):
         return self.name

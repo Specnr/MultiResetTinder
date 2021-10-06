@@ -14,7 +14,7 @@ from datetime import datetime
 SCHEDULER = sched.scheduler(time.time, time.sleep)
 
 listening = True
-active_instance = None
+primary_instance = None
 focused_instance = None
 list_with_focussed = None
 need_to_reset_timer = False
@@ -28,25 +28,24 @@ unfreeze_delay = settings.get_unfreeze_delay()
 
 last_log_time = time.time()
 
-def try_set_active(new_active_instance):
-    global active_instance
-    if active_instance is not None and new_active_instance is not None:
-        if new_active_instance.num != active_instance.num:
-            hlp.set_new_active(active_instance, settings)
-            active_instance = new_active_instance
-        active_instance.mark_active()
+def try_set_primary(new_primary_instance):
+    global primary_instance
+    if primary_instance is not None and new_primary_instance is not None:
+        if new_primary_instance.num != primary_instance.num:
+            hlp.set_new_primary(primary_instance)
+            primary_instance = new_primary_instance
+        primary_instance.mark_primary()
 
-def try_set_focused(new_focused_inst):
-    global active_instance
+def try_set_focused(new_focused_instance):
+    global primary_instance
     global focused_instance
-    if active_instance is not None and new_focused_instance is not None:
-        if not focused_instance.is_ready() and new_focused_instance.num != focused_instance.num and new_focused_instance.num != active_instance.num:
+    if primary_instance is not None and new_focused_instance is not None:
+        if not focused_instance.is_ready() and new_focused_instance.num != focused_instance.num and new_focused_instance.num != primary_instance.num:
             hlp.set_new_focused(new_focused_instance)
             focused_instance = new_focused_instance
-            focused_instance.mark_focused()
 
 def main_loop(sc):
-    global active_instance
+    global primary_instance
     global focused_instance
     global need_to_reset_timer
     global last_log_time
@@ -54,17 +53,19 @@ def main_loop(sc):
     if settings.is_test_mode() and time.time() - last_log_time > settings.get_debug_interval():
         last_log_time = time.time()
         tmp_all_queues = queues.get_all_queues()
+        print('---------------')
         for key in tmp_all_queues.keys():
             print(key,end="|")
             for value in tmp_all_queues[key]:
                 print(value,end=" ")
             print()
+        print('---------------')
 
     if need_to_reset_timer and hlp.is_livesplit_open():
         hlp.run_ahk("callTimer", timerReset=settings["timer-hotkeys"]["timer-reset"],
                     timerStart=settings["timer-hotkeys"]["timer-start"])
 
-    # remove active from all lists, focused can stay in lists
+    # remove primary from all lists, focused can stay in lists
     queues.update_all()
 
     num_working_instances = len(queues.get_gen_instances()) + len(queues.get_booting_instances()) + len(queues.get_pregen_instances()) + len(queues.get_paused_instances()) + unfrozen_queue_size
@@ -113,12 +114,16 @@ def main_loop(sc):
 
     # Handle world gen instances
     for inst in queues.get_gen_instances():
-        if not inst.is_in_world(settings.get_lines_from_bottom()):
+        if not inst.is_in_world():
             continue
         # state = PAUSED
-        inst.mark_worldgen_finished()
         # TODO - why do we need to pause after creating a world? shouldnt it auto-pause?
-        inst.pause()
+        if not inst.is_primary():
+            inst.mark_worldgen_finished()
+            inst.pause()
+        else:
+            inst.mark_active()
+            inst.mark_primary()
 
     # Handle paused instances
     for inst in queues.get_paused_instances():
@@ -155,35 +160,34 @@ def main_loop(sc):
             continue
         inst.suspend()
     
-    # Pick active instance
-    if active_instance is None:
+    # Pick primary instance
+    if primary_instance is None:
         # only needed for initialization, so let's just show nothing until a world is ready
         if len(queues.get_ready_instances()) > 0:
-            active_instance = queues.get_ready_instances()[0]
-            active_instance.mark_active()
-            hlp.set_new_active(active_instance)
+            primary_instance = queues.get_ready_instances()[0]
+            primary_instance.mark_primary()
+            hlp.set_new_primary(primary_instance)
             need_to_reset_timer = True
-    elif not active_instance.is_active():
-        new_active_instance = None
+    elif not primary_instance.is_active():
+        new_primary_instance = None
         if len(queues.get_approved_instances()) > 0:
-            new_active_instance = queues.get_approved_instances()[0]
+            new_primary_instance = queues.get_approved_instances()[0]
         elif len(queues.get_ready_instances()) > 0:
-            new_active_instance = queues.get_ready_instances()[0]
+            new_primary_instance = queues.get_ready_instances()[0]
         elif len(queues.get_paused_instances()) > 0:
-            new_active_instance = queues.get_paused_instances()[0]
+            new_primary_instance = queues.get_paused_instances()[0]
         elif len(queues.get_gen_instances()) > 0:
-            new_active_instance = queues.get_gen_instances()[0]
-        try_set_active(new_active_instance)
+            new_primary_instance = queues.get_gen_instances()[0]
+        try_set_primary(new_primary_instance)
         need_to_reset_timer = True
 
     # Pick focused instance
     if focused_instance is None:
         # only needed for initialization, so let's just show nothing until a world is ready
-        if len(queues.get_ready_instances()) > 0 and active_instance is not None:
-            new_focused_instance = queues.get_ready_instances()[0]
-            # we don't want an instance to be both focused and active
-            if not new_focused_instance.is_active():
-                focused_instance.mark_focused()
+        if len(queues.get_ready_instances()) > 0 and primary_instance is not None:
+            focused_instance = queues.get_ready_instances()[0]
+            # we don't want an instance to be both focused and primary
+            if not focused_instance.is_primary():
                 hlp.set_new_focused(focused_instance)
     else:
         new_focused_instance = None
@@ -198,10 +202,10 @@ def main_loop(sc):
     SCHEDULER.enter(settings.get_loop_delay(), 1, main_loop, (sc,))
 
 # Callbacks
-def reset_active():
-    global active_instance
-    if listening and active_instance is not None:
-        active_instance.reset_active()
+def reset_primary():
+    global primary_instance
+    if listening and primary_instance is not None:
+        primary_instance.reset_primary()
 
 def reset_focused():
     global focused_instance
