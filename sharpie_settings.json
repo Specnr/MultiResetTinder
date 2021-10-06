@@ -28,5 +28,6 @@
       "timer-reset": "F8",
       "timer-start": "F9"
     },
-    "test-mode": true
+    "test-mode": true,
+    "auto-boot": true
   }

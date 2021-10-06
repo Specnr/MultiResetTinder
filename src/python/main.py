@@ -32,6 +32,7 @@ def try_set_primary(new_primary_instance):
     global primary_instance
     if primary_instance is not None and new_primary_instance is not None:
         if new_primary_instance.num != primary_instance.num:
+            primary_instance.mark_hidden()
             hlp.set_new_primary(primary_instance)
             primary_instance = new_primary_instance
         primary_instance.mark_primary()
@@ -43,6 +44,9 @@ def try_set_focused(new_focused_instance):
         if not focused_instance.is_ready() and new_focused_instance.num != focused_instance.num and new_focused_instance.num != primary_instance.num:
             hlp.set_new_focused(new_focused_instance)
             focused_instance = new_focused_instance
+
+def schedule_next(sc):
+    SCHEDULER.enter(settings.get_loop_delay(), 1, main_loop, (sc,))
 
 def main_loop(sc):
     global primary_instance
@@ -80,17 +84,33 @@ def main_loop(sc):
     # Handle dead instances
     for i in range(num_to_boot):
         inst = queues.get_dead_instances()[i]
-        inst.mark_booting()
-        inst.boot()
-        num_booting_instances += 1
-        num_working_instances += 1
+        if settings.should_auto_boot():
+            inst.mark_booting()
+            inst.boot()
+            num_booting_instances += 1
+            num_working_instances += 1
+        else:
+            old_pid = inst.pid
+            inst.assign_pid()
+            if inst.pid != old_pid:
+                inst.mark_booting()
+            break
     
     # Handle booting instances
     for inst in queues.get_booting_instances():
         if not inst.is_done_booting():
             continue
-        inst.mark_generating()
-        inst.initialize_after_boot(queues.get_all_instances())
+        if not settings.should_auto_boot():
+            inst.suspend()
+            inst.release()
+        else:
+            inst.mark_generating()
+            inst.initialize_after_boot(queues.get_all_instances())
+
+    if not settings.should_auto_boot():
+        if len(free_instances) < settings.get_num_instances():
+            schedule_next(sc)
+            return
 
     # Handle pregen instances (recently unfrozen worlds that need to be generated)
     for inst in queues.get_pregen_instances():
@@ -142,9 +162,9 @@ def main_loop(sc):
         index += 1
         if inst.check_should_auto_reset():
             continue
-        if index <= total_to_unfreeze:
-            inst.resume()
-            continue
+        # if inst.is_primary():
+        #     inst.mark_active()
+        #     continue
         inst.suspend()
 
     # Handle approved instances
@@ -163,12 +183,12 @@ def main_loop(sc):
     # Pick primary instance
     if primary_instance is None:
         # only needed for initialization, so let's just show nothing until a world is ready
-        if len(queues.get_ready_instances()) > 0:
-            primary_instance = queues.get_ready_instances()[0]
+        if len(queues.get_booting_instances()) > 0:
+            primary_instance = queues.get_booting_instances()[0]
             primary_instance.mark_primary()
             hlp.set_new_primary(primary_instance)
             need_to_reset_timer = True
-    elif not primary_instance.is_active():
+    elif not primary_instance.is_primary():
         new_primary_instance = None
         if len(queues.get_approved_instances()) > 0:
             new_primary_instance = queues.get_approved_instances()[0]
@@ -184,8 +204,8 @@ def main_loop(sc):
     # Pick focused instance
     if focused_instance is None:
         # only needed for initialization, so let's just show nothing until a world is ready
-        if len(queues.get_ready_instances()) > 0 and primary_instance is not None:
-            focused_instance = queues.get_ready_instances()[0]
+        if len(queues.get_booting_instances()) > 0 and primary_instance is not None:
+            focused_instance = queues.get_booting_instances()[0]
             # we don't want an instance to be both focused and primary
             if not focused_instance.is_primary():
                 hlp.set_new_focused(focused_instance)
@@ -199,7 +219,7 @@ def main_loop(sc):
             new_focused_instance = queues.get_gen_instances()[0]
         try_set_focused(new_focused_instance)
 
-    SCHEDULER.enter(settings.get_loop_delay(), 1, main_loop, (sc,))
+    schedule_next(sc)
 
 # Callbacks
 def reset_primary():
@@ -226,7 +246,7 @@ def toggle_hotkeys():
 if __name__ == "__main__":
     # TODO: Automatically startup instances
     assert unfrozen_queue_size < max_concurrent
-    kb.add_hotkey(settings.get_hotkeys()['reset-active'], reset_active)
+    kb.add_hotkey(settings.get_hotkeys()['reset-active'], reset_primary)
     kb.add_hotkey(settings.get_hotkeys()['reset-focused'], reset_focused)
     kb.add_hotkey(settings.get_hotkeys()['approve-focused'], approve_focused)
     kb.add_hotkey(settings.get_hotkeys()['toggle-hotkeys'], toggle_hotkeys)

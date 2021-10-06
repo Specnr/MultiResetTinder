@@ -67,6 +67,10 @@ def is_fullscreen_enabled():
 def get_test_boot_time():
     return 10.0
 
-def get_test_
+def get_test_worldgen_time():
+    return 5.0
+
+def should_auto_boot():
+    return settings['auto-boot']
 
 # Path(settings["old-worlds"]).mkdir(parents=True, exist_ok=True)

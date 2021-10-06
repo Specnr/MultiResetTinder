@@ -24,7 +24,7 @@ def is_livesplit_open():
         return  
     return ahk.find_window(title=b"LiveSplit") is not None
 
-def set_new_active(inst):
+def set_new_primary(inst):
     if inst is not None:
         run_ahk("updateTitle", pid=inst.pid,
                 title="Minecraft* - Active Instance")

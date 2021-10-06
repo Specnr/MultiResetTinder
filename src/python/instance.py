@@ -113,13 +113,19 @@ class Stateful(Suspendable):
 
 class DisplayStateful(Stateful):
 
-    def mark_primary(self):
+    def mark_hidden(self):
+        self.displayState = DisplayState.HIDEN
+    
+    def mark_focused(self):
+        self.displayState = DisplayState.FOCUSED
 
+    def mark_primary(self):
+        self.displayState = DisplayState.PRIMARY
 
     def is_primary(self):
         return self.displayState == DisplayState.PRIMARY
 
-class ConditionalTransitionable(Stateful):
+class ConditionalTransitionable(DisplayStateful):
 
     def is_ready_for_freeze(self):
         duration = 2.0
@@ -144,7 +150,6 @@ class ConditionalTransitionable(Stateful):
         if has_passed(self.timestamp, duration):
             self.release()
             return True
-            
 
     def is_active(self):
         return self.state == State.ACTIVE
@@ -157,6 +162,7 @@ class Instance(ConditionalTransitionable):
         self.first_reset = True
         self.suspended = False
         self.state = State.DEAD
+        self.displayState = DisplayState.HIDDEN
         assign_to_state(self, self.state)
         self.timestamp = 0
         self.was_active = False
