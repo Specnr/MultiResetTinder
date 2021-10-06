@@ -1,12 +1,35 @@
 import settings
 import obswebsocket.requests as obsrequests
+from obswebsocket import obsws
 
-stream_obs = obsws(settings.get_obs_web_host(),
-               settings.get_obs_port(),
-               settings.get_obs_password())
+
 
 focused_instance = None
 primary_instance = None
+
+def get_primary_instance():
+    global primary_instance
+    return primary_instance
+
+def get_focused_instance():
+    global focused_instance
+    return focused_instance
+
+def set_primary_instance(inst):
+    global primary_instance
+    primary_instance = inst
+
+def set_focused_instance(inst):
+    global focused_instance
+    focused_instance = inst
+
+def connect_to_stream_obs():
+    if settings.is_test_mode():
+        return
+    stream_obs = obsws(settings.get_obs_web_host(),
+               settings.get_obs_port(),
+               settings.get_obs_password())
+    stream_obs.connect()
 
 def call_stream_websocket(*args):
     if settings.is_test_mode():
@@ -23,10 +46,14 @@ def set_scene_item_properties(name, visible):
     call_stream_websocket(obsrequests.SetSceneItemProperties(name, visible=True))
 
 def set_new_primary(inst):
+    print(inst)
     if inst is not None:
         global primary_instance
-        primary_instance = inst
-        inst.resume()
+        if primary_instance is not None:
+            primary_instance.mark_hidden()
+        set_primary_instance(inst)
+        primary_instance.mark_primary()
+        primary_instance.resume()
         # TODO @Specnr: Update ls user config (is this still needed?)
         # TODO @Specnr: Change sound source on stream maybe?
         if settings.is_fullscreen_enabled():
@@ -53,15 +80,15 @@ def create_scene_item_for_instance(inst):
     #       tile based on total number of instances
     pass
 
-def unhide_all(ws):
-    scenes_items = .getSceneItems()
-    for s in scenes_items:
+def unhide_all():
+    scene_items = get_scene_items()
+    for s in scene_items:
         name = s["sourceName"]
         if 'active' in name or 'focus' in name:
             ws.call(requests.SetSceneItemProperties(name, visible=True))
 
 
-def update_obs():
+def update_state():
     if settings.is_test_mode():
         return
     scenes_items = get_scene_items()

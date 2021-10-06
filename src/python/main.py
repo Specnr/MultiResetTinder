@@ -9,14 +9,13 @@ import os
 import keyboard as kb
 from pathlib import Path
 from datetime import datetime
+import launch
+import obs
 
 # Load settings
 SCHEDULER = sched.scheduler(time.time, time.sleep)
 
 listening = True
-primary_instance = None
-focused_instance = None
-list_with_focussed = None
 need_to_reset_timer = False
 
 max_concurrent = settings.get_max_concurrent()
@@ -29,28 +28,23 @@ unfreeze_delay = settings.get_unfreeze_delay()
 last_log_time = time.time()
 
 def try_set_primary(new_primary_instance):
-    global primary_instance
+    print('try set primary to {}'.format(new_primary_instance))
+    primary_instance = obs.get_primary_instance()
     if primary_instance is not None and new_primary_instance is not None:
         if new_primary_instance.num != primary_instance.num:
-            primary_instance.mark_hidden()
-            hlp.set_new_primary(primary_instance)
-            primary_instance = new_primary_instance
-        primary_instance.mark_primary()
+            obs.set_new_primary(primary_instance)
 
 def try_set_focused(new_focused_instance):
-    global primary_instance
-    global focused_instance
+    primary_instance = obs.get_primary_instance()
+    focused_instance = obs.get_focused_instance()
     if primary_instance is not None and new_focused_instance is not None:
         if not focused_instance.is_ready() and new_focused_instance.num != focused_instance.num and new_focused_instance.num != primary_instance.num:
-            hlp.set_new_focused(new_focused_instance)
-            focused_instance = new_focused_instance
+            obs.set_new_focused(new_focused_instance)
 
 def schedule_next(sc):
     SCHEDULER.enter(settings.get_loop_delay(), 1, main_loop, (sc,))
 
 def main_loop(sc):
-    global primary_instance
-    global focused_instance
     global need_to_reset_timer
     global last_log_time
 
@@ -63,6 +57,9 @@ def main_loop(sc):
             for value in tmp_all_queues[key]:
                 print(value,end=" ")
             print()
+        print()
+        print(f'DisplayState.FOCUSED {obs.get_focused_instance()}')
+        print(f'DisplayState.PRIMARY {obs.get_primary_instance()}')
         print('---------------')
 
     if need_to_reset_timer and hlp.is_livesplit_open():
@@ -84,7 +81,7 @@ def main_loop(sc):
     # Handle dead instances
     for i in range(num_to_boot):
         inst = queues.get_dead_instances()[i]
-        if settings.should_auto_boot():
+        if settings.should_auto_launch():
             inst.mark_booting()
             inst.boot()
             num_booting_instances += 1
@@ -100,14 +97,14 @@ def main_loop(sc):
     for inst in queues.get_booting_instances():
         if not inst.is_done_booting():
             continue
-        if not settings.should_auto_boot():
+        if not settings.should_auto_launch():
             inst.suspend()
             inst.release()
         else:
             inst.mark_generating()
             inst.initialize_after_boot(queues.get_all_instances())
 
-    if not settings.should_auto_boot():
+    if not settings.should_auto_launch():
         if len(free_instances) < settings.get_num_instances():
             schedule_next(sc)
             return
@@ -182,14 +179,14 @@ def main_loop(sc):
         inst.suspend()
     
     # Pick primary instance
+    primary_instance = obs.get_primary_instance()
+    focused_instance = obs.get_focused_instance()
     if primary_instance is None:
         # only needed for initialization, so let's just show nothing until a world is ready
         if len(queues.get_booting_instances()) > 0:
-            primary_instance = queues.get_booting_instances()[0]
-            primary_instance.mark_primary()
-            hlp.set_new_primary(primary_instance)
+            obs.set_new_primary(queues.get_booting_instances()[0])
             need_to_reset_timer = True
-    elif not primary_instance.is_primary():
+    elif not primary_instance.is_active():
         new_primary_instance = None
         if len(queues.get_approved_instances()) > 0:
             new_primary_instance = queues.get_approved_instances()[0]
@@ -206,10 +203,10 @@ def main_loop(sc):
     if focused_instance is None:
         # only needed for initialization, so let's just show nothing until a world is ready
         if len(queues.get_booting_instances()) > 0 and primary_instance is not None:
-            focused_instance = queues.get_booting_instances()[0]
             # we don't want an instance to be both focused and primary
+            focused_instance = queues.get_booting_instances()[0]
             if not focused_instance.is_primary():
-                hlp.set_new_focused(focused_instance)
+                obs.set_new_focused(focused_instance)
     else:
         new_focused_instance = None
         if len(queues.get_ready_instances()) > 0:
@@ -219,17 +216,19 @@ def main_loop(sc):
         elif len(queues.get_gen_instances()) > 0:
             new_focused_instance = queues.get_gen_instances()[0]
         try_set_focused(new_focused_instance)
+    
+    obs.update_state()
 
     schedule_next(sc)
 
 # Callbacks
 def reset_primary():
-    global primary_instance
+    primary_instance = obs.get_primary_instance()
     if listening and primary_instance is not None:
-        primary_instance.reset_primary()
+        primary_instance.reset_active()
 
 def reset_focused():
-    global focused_instance
+    focused_instance = obs.get_focused_instance()
     if listening and focused_instance is not None:
         if focused_instance.state == State.PAUSED or focused_instance.state == State.READY:
             focused_instance.release()
@@ -263,25 +262,13 @@ def open_needed_programs():
         print("Opened OBS")
 
 if __name__ == "__main__":
-    # TODO: Automatically startup instances
-     if settings['multi-mc-path'] != "":
-        for mc_folder in settings["mc-folders"]:
-            inst_id = mc_folder.split("/")[-2]
-            print("Starting Instance", inst_id)
-            inst = Process(target=open_instance, args=(inst_id,))
-            inst.start()
-            # TODO: read the log and wait for access token or something
-            time.sleep(2.5)
-    # TODO: wait for 'Component list save performed now for "<inst_id>"'
-    time.sleep(7.5)
-    PIDs = list(map(int, hlp.run_ahk(
-        "getPIDs", instances=len(settings["mc-folders"]), MultiMC=settings['multi-mc-path'] != "").split("|")))
-    open_needed_programs()
-    input("Press any key to continue...")
-    # TODO: unhide all
-    OBS_WS.connect()
-    hlp.unhide_all(OBS_WS)
+    # TODO @Sharpieman20 - add more good assertions
+    # TODO @Sharpieman20 - add error messages explaining
     assert unfrozen_queue_size < max_concurrent
+    launch.launch_all_programs()
+    input("Press any key to continue...")
+    obs.connect_to_stream_obs()
+    obs.unhide_all()
     kb.add_hotkey(settings.get_hotkeys()['reset-active'], reset_primary)
     kb.add_hotkey(settings.get_hotkeys()['reset-focused'], reset_focused)
     kb.add_hotkey(settings.get_hotkeys()['approve-focused'], approve_focused)
