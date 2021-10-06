@@ -243,8 +243,43 @@ def toggle_hotkeys():
     global listening
     listening = not listening
 
+def open_instance(inst_id):
+    os.popen(f'{settings["multi-mc-path"]} -l "{inst_id}"')
+
+
+def open_needed_programs():
+    seen_ls, seen_obs = False, False
+    for p in psutil.process_iter():
+        if not seen_obs and "OBS" in p.name():
+            seen_obs = True
+        if not seen_ls and "LiveSplit" in p.name():
+            seen_ls = True
+    if not seen_ls:
+        os.startfile(settings["livesplit-path"])
+        print("Opened LiveSplit")
+    if not seen_obs:
+        os.system(f'start /d "{settings["obs-path"]}" "" obs64.exe')
+        print("Opened OBS")
+
 if __name__ == "__main__":
     # TODO: Automatically startup instances
+     if settings['multi-mc-path'] != "":
+        for mc_folder in settings["mc-folders"]:
+            inst_id = mc_folder.split("/")[-2]
+            print("Starting Instance", inst_id)
+            inst = Process(target=open_instance, args=(inst_id,))
+            inst.start()
+            # TODO: read the log and wait for access token or something
+            time.sleep(2.5)
+    # TODO: wait for 'Component list save performed now for "<inst_id>"'
+    time.sleep(7.5)
+    PIDs = list(map(int, hlp.run_ahk(
+        "getPIDs", instances=len(settings["mc-folders"]), MultiMC=settings['multi-mc-path'] != "").split("|")))
+    open_needed_programs()
+    input("Press any key to continue...")
+    # TODO: unhide all
+    OBS_WS.connect()
+    hlp.unhide_all(OBS_WS)
     assert unfrozen_queue_size < max_concurrent
     kb.add_hotkey(settings.get_hotkeys()['reset-active'], reset_primary)
     kb.add_hotkey(settings.get_hotkeys()['reset-focused'], reset_focused)

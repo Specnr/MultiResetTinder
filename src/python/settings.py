@@ -73,4 +73,13 @@ def get_test_worldgen_time():
 def should_auto_boot():
     return settings['auto-boot']
 
+def get_obs_web_host():
+    return settings['obs-settings']['web-host']
+
+def get_obs_port():
+    return settings['obs-settings']['port']
+
+def get_obs_password():
+    return settings['obs-settings']['password.]
+
 # Path(settings["old-worlds"]).mkdir(parents=True, exist_ok=True)

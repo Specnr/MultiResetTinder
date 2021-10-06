@@ -7,6 +7,7 @@ import uuid
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
+from obswebsocket import requests
 
 num_per_state = {}
 
@@ -209,7 +210,11 @@ class Instance(ConditionalTransitionable):
         self.mark_inactive()
 
     def reset(self):
-        hlp.run_ahk("reset", pid=self.pid)
+        if self.first_reset:
+            run_ahk("resetFromTitle", pid=self.PID)
+            self.first_reset = False
+        else:
+            run_ahk("reset", pid=self.PID)
 
     def pause(self):
         hlp.run_ahk("pauseGame", pid=self.pid)
