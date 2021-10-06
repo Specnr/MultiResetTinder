@@ -3,6 +3,15 @@
   "fullscreen": false,
   "count-attempts": true,
   "auto-reset": true,
+  "multi-mc-path": "C:/MultiInstanceMC/MultiMC/MultiMC.exe",
+  "livesplit-path": "D:/Program Files (x86)/LiveSplit_1.8.16/LiveSplit.exe",
+  "livesplit-user-config": "",
+  "obs-path": "D:/Program Files/obs-studio/bin/64bit",
+  "obs-settings" : {
+    "web-host": "localhost",
+    "port": 4444,
+    "password": "password"
+  },
   "freeze-delay": 170,
   "fullscreen-delay": 100,
   "switch-delay": 170,
@@ -10,7 +19,6 @@
   "obs-delay": 50,
   "loop-delay": 100,
   "boot-delay": 10.0,
-  "multimc-executable": "$HOME/Applications/MultiMC.app/Contents/MacOS/MultiMC",
   "template-instance": "1.16INST",
   "num-instances": 3,
   "lines-from-bottom": 2,
