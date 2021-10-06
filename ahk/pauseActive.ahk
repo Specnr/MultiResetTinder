@@ -1,3 +1,3 @@
 #Persistent
-ControlSend, ahk_parent, {Esc}, ahk_pid %pid%
+ControlSend, ahk_parent, {Blind}{Esc}, ahk_pid %pid%
 ExitApp

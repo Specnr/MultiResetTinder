@@ -3,18 +3,24 @@
   "fullscreen": false,
   "count-attempts": true,
   "auto-reset": true,
-  "multi-mc": true,
+  "multi-mc-path": "C:/MultiInstanceMC/MultiMC/MultiMC.exe",
+  "livesplit-path": "D:/Program Files (x86)/LiveSplit_1.8.16/LiveSplit.exe",
+  "livesplit-user-config": "",
+  "obs-path": "D:/Program Files/obs-studio/bin/64bit",
+  "obs-settings" : {
+    "web-host": "localhost",
+    "port": 4444,
+    "password": "password"
+  },
   "freeze-delay": 170,
   "fullscreen-delay": 100,
   "switch-delay": 170,
   "obs-delay": 50,
-  "loop-delay": 0.01,
   "mc-folders": [
     "C:/MultiInstanceMC/MultiMC/instances/1.16INST1/.minecraft",
     "C:/MultiInstanceMC/MultiMC/instances/1.16INST2/.minecraft",
     "C:/MultiInstanceMC/MultiMC/instances/1.16INST3/.minecraft"
   ],
-  "lines-from-bottom": 2,
   "old-worlds": "C:/MultiInstanceMC/oldWorlds",
   "max-concurrent-gen": 2,
   "hotkeys": {
@@ -26,5 +32,7 @@
   "timer-hotkeys": {
     "timer-reset": "F8",
     "timer-start": "F9"
-  }
+  },
+  "lines-from-bottom": 2,
+  "loop-delay": 0.01
 }
