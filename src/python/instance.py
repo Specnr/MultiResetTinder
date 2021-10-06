@@ -8,6 +8,7 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from obswebsocket import requests
+from launch import launch_instance
 
 num_per_state = {}
 
@@ -143,6 +144,7 @@ class ConditionalTransitionable(DisplayStateful):
         return has_passed(self.timestamp, duration)
     
     def is_done_booting(self):
+        # TODO @Sharpieman20 - dynamically check if booted
         duration = settings.get_boot_delay()
         return has_passed(self.timestamp, duration)
 
@@ -172,7 +174,7 @@ class Instance(ConditionalTransitionable):
         self.current_world = None
     
     def boot(self):
-        hlp.run_ahk("openOfflineInstance", pid=self.pid)
+        launch_instance(self)
         
     # not yet implemented (not needed in v1)
     def create_multimc_instance(self):
@@ -181,17 +183,7 @@ class Instance(ConditionalTransitionable):
 
     # not yet implemented (not needed in v1)
     def create_obs_instance(self):
-        # create a source with this:
-        # https://github.com/Elektordi/obs-websocket-py/blob/master/obswebsocket/requests.py#L551
-        # we can create a source that is a copy of a different source returned from
-        # https://github.com/Elektordi/obs-websocket-py/blob/master/obswebsocket/requests.py#L524
 
-        # obs1
-        #      create a source for when this instance is active
-        #   create a source for when this instance is focused
-        # obs2
-        #   create a source for this instance
-        #       tile based on total number of instances
         pass
 
     def initialize_after_boot(self, all_instances):

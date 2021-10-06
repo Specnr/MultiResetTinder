@@ -16,32 +16,13 @@ def get_time():
 def get_pids():
     if settings.is_test_mode():
         return list(inst for inst in queues.get_all_instances() if inst.pid != -1)
-    # TODO - check that this actually works correctly
+    # TODO @Specnr - check that this actually works correctly
     return list(map(int, run_ahk("getPIDs", instances=int(settings.get_num_instances()), MultiMC=True).split("|")))
 
 def is_livesplit_open():
     if settings.is_test_mode():
         return  
     return ahk.find_window(title=b"LiveSplit") is not None
-
-def set_new_primary(inst):
-    if inst is not None:
-        run_ahk("updateTitle", pid=inst.pid,
-                title="Minecraft* - Active Instance")
-        inst.resume()
-        # TODO: Update ls user config (is this still needed?)
-        run_ahk("activateWindow", switchDelay=settings.get_switch_delay(),
-                pid=inst.pid, idx=inst.num, obsDelay=settings.get_obs_delay())
-        if settings.is_fullscreen_enabled():
-            run_ahk("toggleFullscreen")
-
-def set_new_focused(inst):
-    if inst is not None:
-        # TODO - move focused
-        # we need to move this to second monitor or something then fullscreen
-        # also need to switch out old focused to tile
-        run_ahk("updateTitle", pid=inst.pid,
-                title="Minecraft* - Focused Instance")
 
 def file_to_script(script_name, **kwargs):
     script_str = ""

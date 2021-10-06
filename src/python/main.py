@@ -162,6 +162,7 @@ def main_loop(sc):
         index += 1
         if inst.check_should_auto_reset():
             continue
+        # state = ?
         # if inst.is_primary():
         #     inst.mark_active()
         #     continue

@@ -43,8 +43,8 @@ def get_loop_delay():
 def get_lines_from_bottom():
     return int(settings['lines-from-bottom'])
 
-def get_multimc_executable():
-    return Path(settings['multimc-executable'])
+def get_multimc_path():
+    return Path(settings['multi-mc-path'])
 
 def get_base_instance_name():
     return settings['template-instance']
