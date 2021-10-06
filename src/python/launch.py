@@ -1,10 +1,16 @@
+import settings
 import psutil
 from copy import copy
+from multiprocessing import Process
+import os
+
+def launch_instance_inner(inst_name):
+    os.popen(f'{settings.get_multimc_path()} -l "{inst_name}"')
 
 def launch_instance(inst):
-    def open_instance_inner(inst_name):
-        os.popen(f'{settings.get_multimc_path()} -l "{inst_id}"')
-    inst = Process(target=open_instance_inner, args=(inst.name,))
+    if settings.is_test_mode():
+        return
+    inst = Process(target=launch_instance_inner, args=(inst.name,))
     inst.start()
 
 def launch_obs():
@@ -14,7 +20,9 @@ def launch_obs():
 def launch_livesplit():
     os.startfile(settings["livesplit-path"])
 
-def launch_all_program():
+def launch_all_programs():
+    if settings.is_test_mode() or not settings.should_auto_launch():
+        return
     # TODO: add stat tracker?
     all_programs = ["OBS", "LiveSplit", "MultiMC"]
     are_launched = {program: False for program in all_programs}

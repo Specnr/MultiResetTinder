@@ -17,8 +17,8 @@
   "switch-delay": 170,
   "unfreeze-delay": 100,
   "obs-delay": 50,
-  "loop-delay": 100,
-  "boot-delay": 10.0,
+  "loop-delay": 50,
+  "boot-delay": 5.0,
   "template-instance": "1.16INST",
   "num-instances": 5,
   "old-worlds": "C:/MultiInstanceMC/oldWorlds",
@@ -36,5 +36,5 @@
     "timer-start": "F9"
   },
   "test-mode": false,
-  "auto-boot": false
+  "auto-launch": true
 }

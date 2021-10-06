@@ -52,9 +52,6 @@ def get_base_instance_name():
 def get_boot_delay():
     return float(settings['boot-delay'])
 
-def get_debug_interval():
-    return 5.0
-
 def get_switch_delay():
     return float(settings['switch-delay'])
 
@@ -64,22 +61,31 @@ def get_obs_delay():
 def is_fullscreen_enabled():
     return settings['fullscreen']
 
-def get_test_boot_time():
-    return 10.0
+def get_debug_interval():
+    return 1.0
 
-def get_test_worldgen_time():
+def get_test_boot_time():
     return 5.0
 
-def should_auto_boot():
-    return settings['auto-boot']
+def get_test_worldgen_time():
+    return 2.0
+
+def should_auto_launch():
+    return settings['auto-launch']
 
 def get_obs_web_host():
+    if is_test_mode():
+        return None
     return settings['obs-settings']['web-host']
 
 def get_obs_port():
+    if is_test_mode():
+        return None
     return settings['obs-settings']['port']
 
 def get_obs_password():
-    return settings['obs-settings']['password.]
+    if is_test_mode():
+        return None
+    return settings['obs-settings']['password']
 
 # Path(settings["old-worlds"]).mkdir(parents=True, exist_ok=True)

@@ -7,7 +7,6 @@ import uuid
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from obswebsocket import requests
 from launch import launch_instance
 
 num_per_state = {}
@@ -116,7 +115,7 @@ class Stateful(Suspendable):
 class DisplayStateful(Stateful):
 
     def mark_hidden(self):
-        self.displayState = DisplayState.HIDEN
+        self.displayState = DisplayState.HIDDEN
     
     def mark_focused(self):
         self.displayState = DisplayState.FOCUSED
@@ -170,7 +169,7 @@ class Instance(ConditionalTransitionable):
         self.timestamp = 0
         self.was_active = False
         self.name = '{}{}'.format(settings.get_base_instance_name(), self.num)
-        self.mcdir = settings.get_multimc_executable() / "instances" / self.name / ".minecraft"
+        self.mcdir = settings.get_multimc_path() / "instances" / self.name / ".minecraft"
         self.current_world = None
     
     def boot(self):
@@ -183,30 +182,23 @@ class Instance(ConditionalTransitionable):
 
     # not yet implemented (not needed in v1)
     def create_obs_instance(self):
-
-        pass
+        obs.create_scene_item_for_instance(self)
 
     def initialize_after_boot(self, all_instances):
         # assign our pid somehow
         self.assign_pid(all_instances)
-        # set our title
-        hlp.run_ahk("updateTitle", pid=self.pid,
-            title="Minecraft* - Instance {}".format(self.num))
         # start generating world w/ duncan mod
-        hlp.run_ahk("startDuncanModSession", pid=self.pid)
+        hlp.run_ahk("resetFromTitle", pid=self.pid)
         # set state to generating
         self.mark_generating()
 
     def reset_active(self):
-        self.pause()
-        self.mark_inactive()
+        if self.is_active():
+            self.pause()
+            self.mark_inactive()
 
     def reset(self):
-        if self.first_reset:
-            run_ahk("resetFromTitle", pid=self.PID)
-            self.first_reset = False
-        else:
-            run_ahk("reset", pid=self.PID)
+        hlp.run_ahk("reset", pid=self.pid)
 
     def pause(self):
         hlp.run_ahk("pauseGame", pid=self.pid)
